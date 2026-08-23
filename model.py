@@ -11,6 +11,7 @@ class Users(Base):
     name=Column(String(50),nullable=False)
     gender=Column(String(10),nullable=False)
     phone_no=Column(String(15),nullable=False)
+    google_sub=Column(String(255),unique=True,nullable=True)
 
 class CabQuery(Base):
     __tablename__ ="cab_query"
