@@ -1,10 +1,17 @@
 from datetime import datetime
-
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI,Depends, HTTPException
 from model import CabQuery, CabQueryOut,CabQueryCreate, CabQueryUpdate, CabRequestOut, CabRequestUpdate, CabRequests,UserLogin
 from database import get_db
 
 app=FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8081"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 cabride=[
     {"loc": "madurai", "id": 1, "date" :"01/01/2001"},
