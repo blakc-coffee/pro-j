@@ -6,11 +6,11 @@ class Users(Base):
     __tablename__ ="users"
 
     user_id=Column(Integer,primary_key=True)
-    roll_no=Column(String(11),unique=True,nullable=False)
+    roll_no=Column(String(11),unique=True,nullable=True)
     email_id=Column(String(100),unique=True,nullable=False)
     name=Column(String(50),nullable=False)
-    gender=Column(String(10),nullable=False)
-    phone_no=Column(String(15),nullable=False)
+    gender=Column(String(10),nullable=True)
+    phone_no=Column(String(15),nullable=True)
     google_sub=Column(String(255),unique=True,nullable=True)
 
 class CabQuery(Base):
@@ -42,6 +42,17 @@ class UserLogin(BaseModel):
     email_id: str
     password:str
     
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+class AuthResponse(BaseModel):
+    access_token: str
+    user_id: int
+    email_id: str
+    name: str
+    onboarding_required: bool
+    
+
 class CabQueryOut(BaseModel):
 
     cab_id: int
