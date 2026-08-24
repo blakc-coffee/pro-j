@@ -1,9 +1,12 @@
 from datetime import datetime
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI,Depends, HTTPException
-from model import CabQuery, CabQueryOut,CabQueryCreate, CabQueryUpdate, CabRequestOut, CabRequestUpdate, CabRequests,UserLogin
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from model import CabQuery, CabQueryOut,CabQueryCreate, CabQueryUpdate, CabRequestOut, CabRequestUpdate, CabRequests,UserLogin, GoogleAuthRequest, AuthResponse, Users
 from database import get_db
-
+from security import create_access_token
 app=FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +30,70 @@ def login(creds:UserLogin ,db=Depends(get_db)):
         return "Succesfull login"
     else :
         raise HTTPException(status_code=401,detail="invalid user details")
+
+@app.post("/auth/google", response_model=AuthResponse)
+def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
+    try:
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        if not client_id:
+            raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID is not set")
+            
+        idinfo = id_token.verify_oauth2_token(req.id_token, requests.Request(), client_id)
+        
+        if not idinfo.get('email_verified', False):
+            raise HTTPException(status_code=401, detail="Email not verified by Google")
+            
+        google_sub = idinfo['sub']
+        email = idinfo.get('email')
+        name = idinfo.get('name', 'Google User')
+
+        # Future domain restriction
+        RESTRICT_DOMAIN = False
+        if RESTRICT_DOMAIN and email and not email.endswith('@iiitkottayam.ac.in'):
+            raise HTTPException(status_code=403, detail="Email domain not allowed")
+
+        user = db.query(Users).filter(Users.google_sub == google_sub).first()
+
+        if not user:
+            if email:
+                user = db.query(Users).filter(Users.email_id == email).first()
+                if user:
+                    user.google_sub = google_sub
+                    db.commit()
+                    db.refresh(user)
+
+        if not user:
+            if not email:
+                raise HTTPException(status_code=400, detail="Google token does not contain an email")
+            
+            # Extract roll_no from local part
+            inferred_roll_no = email.split('@')[0] if email else None
+            
+            user = Users(
+                email_id=email,
+                name=name,
+                google_sub=google_sub,
+                roll_no=inferred_roll_no,
+                gender=None,
+                phone_no=None
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        onboarding_required = user.roll_no is None or user.gender is None or user.phone_no is None
+        
+        access_token = create_access_token({"sub": str(user.user_id)})
+        
+        return AuthResponse(
+            access_token=access_token,
+            user_id=user.user_id,
+            email_id=user.email_id,
+            name=user.name,
+            onboarding_required=onboarding_required
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
 
 #create a new ride
 @app.post("/cab-queries",response_model=CabQueryOut)
