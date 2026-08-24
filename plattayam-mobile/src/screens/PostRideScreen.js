@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 
 import AppHeader from '../components/AppHeader';
@@ -31,6 +32,46 @@ export default function PostRideScreen() {
   const [seats, setSeats] = useState(2);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const yyyy = selectedDate.getFullYear();
+      const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(selectedDate.getDate()).padStart(2, '0');
+      setTravelDate(`${yyyy}-${mm}-${dd}`);
+    }
+  };
+
+  const onTimeChange = (event, selectedDate) => {
+    setShowTimePicker(false);
+    if (selectedDate) {
+      const hh = String(selectedDate.getHours()).padStart(2, '0');
+      const mm = String(selectedDate.getMinutes()).padStart(2, '0');
+      setDepTime(`${hh}:${mm}`);
+    }
+  };
+
+  const getDateValue = () => {
+    if (!travelDate) return new Date();
+    const [yyyy, mm, dd] = travelDate.split('-');
+    const d = new Date();
+    d.setFullYear(parseInt(yyyy, 10));
+    d.setMonth(parseInt(mm, 10) - 1);
+    d.setDate(parseInt(dd, 10));
+    return d;
+  };
+
+  const getTimeValue = () => {
+    if (!depTime) return new Date();
+    const [hh, mm] = depTime.split(':');
+    const d = new Date();
+    d.setHours(parseInt(hh, 10));
+    d.setMinutes(parseInt(mm, 10));
+    return d;
+  };
 
   function validate() {
     if (!fromLoc.trim() || !toLoc.trim()) {
@@ -101,22 +142,46 @@ export default function PostRideScreen() {
         />
 
         <Text style={styles.label}>Travel Date</Text>
-        <TextInput
-          value={travelDate}
-          onChangeText={setTravelDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.mutedForeground}
-          style={styles.input}
-        />
+        <Pressable onPress={() => setShowDatePicker(true)}>
+          <View pointerEvents="none">
+            <TextInput
+              value={travelDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.mutedForeground}
+              style={styles.input}
+              editable={false}
+            />
+          </View>
+        </Pressable>
+        {showDatePicker && (
+          <DateTimePicker
+            value={getDateValue()}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
 
         <Text style={styles.label}>Departure</Text>
-        <TextInput
-          value={depTime}
-          onChangeText={setDepTime}
-          placeholder="HH:MM"
-          placeholderTextColor={colors.mutedForeground}
-          style={styles.input}
-        />
+        <Pressable onPress={() => setShowTimePicker(true)}>
+          <View pointerEvents="none">
+            <TextInput
+              value={depTime}
+              placeholder="HH:MM"
+              placeholderTextColor={colors.mutedForeground}
+              style={styles.input}
+              editable={false}
+            />
+          </View>
+        </Pressable>
+        {showTimePicker && (
+          <DateTimePicker
+            value={getTimeValue()}
+            mode="time"
+            display="default"
+            onChange={onTimeChange}
+          />
+        )}
 
         <Text style={styles.label}>Seats Available</Text>
         <View style={styles.stepper}>
