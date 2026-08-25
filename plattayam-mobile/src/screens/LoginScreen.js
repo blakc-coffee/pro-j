@@ -19,21 +19,21 @@ import { getApiBaseUrl } from '../constants/config';
 export default function LoginScreen() {
   const { login } = useAuth();
   const apiBaseUrl = getApiBaseUrl();
-  const [email, setEmail] = useState('user@iiitkottayam.ac.in');
+  const [rollNo, setRollNo] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function onSubmit() {
-    if (!email.trim() || !password) {
-      setError('Email and password are required.');
+    if (!rollNo.trim() || !password) {
+      setError('Roll number and password are required.');
       return;
     }
 
     setLoading(true);
     setError('');
     try {
-      await login(email.trim(), password);
+      await login(rollNo.trim(), password);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,17 +51,15 @@ export default function LoginScreen() {
       <View style={styles.body}>
         <Text style={styles.heading}>Sign in</Text>
         <Text style={styles.copy}>
-          Login uses POST /login with email_id and password. The backend does
-          not return a JWT; it only checks the hardcoded campus account.
+          Use your Moodle credentials to log in.
         </Text>
 
-        <Text style={styles.label}>Institute email</Text>
+        <Text style={styles.label}>Roll Number / Username</Text>
         <TextInput
-          value={email}
-          onChangeText={setEmail}
+          value={rollNo}
+          onChangeText={setRollNo}
           autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="user@iiitkottayam.ac.in"
+          placeholder="2023..."
           placeholderTextColor={colors.mutedForeground}
           style={styles.input}
         />
@@ -78,7 +76,7 @@ export default function LoginScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <PrimaryButton label="Continue" loading={loading} onPress={onSubmit} />
+        <PrimaryButton label="Login" loading={loading} onPress={onSubmit} />
 
         <Text style={styles.hint}>
           API: {apiBaseUrl || 'Set EXPO_PUBLIC_API_URL for this device'}
@@ -130,5 +128,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.mutedForeground,
     marginTop: spacing.lg,
-  },
+  }
 });

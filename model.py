@@ -7,7 +7,7 @@ class Users(Base):
 
     user_id=Column(Integer,primary_key=True)
     roll_no=Column(String(11),unique=True,nullable=True)
-    email_id=Column(String(100),unique=True,nullable=False)
+    email_id=Column(String(100),unique=True,nullable=True)
     name=Column(String(50),nullable=False)
     gender=Column(String(10),nullable=True)
     phone_no=Column(String(15),nullable=True)
@@ -48,7 +48,8 @@ class GoogleAuthRequest(BaseModel):
 class AuthResponse(BaseModel):
     access_token: str
     user_id: int
-    email_id: str
+    roll_no: str | None = None
+    email_id: str | None = None
     name: str
     onboarding_required: bool
     
@@ -88,6 +89,7 @@ class CabRequestOut(BaseModel):
     req_id: int
     status:str
     created_at: datetime
+    model_config={"from_attributes":True}
 
 class CabRequestUpdate(BaseModel):
     status:str 
