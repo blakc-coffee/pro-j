@@ -3,15 +3,17 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { colors } from '../constants/colors';
 import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
-import { requestStatusKey, requestStatusLabel } from '../utils/format';
+import { formatFullName, getFirstName, requestStatusKey, requestStatusLabel } from '../utils/format';
 import StatusBadge from './StatusBadge';
 
 export default function RequestRow({
   request,
+  profile,
   showActions,
   busy,
   onAccept,
   onReject,
+  onPressUser,
 }) {
   if (!request) {
     return null;
@@ -19,18 +21,15 @@ export default function RequestRow({
 
   return (
     <View style={styles.row}>
-      <View style={styles.info}>
-        <Text style={styles.name}>User #{request.req_user_id}</Text>
-        <Text style={styles.batch}>
-          Batch is not returned by the backend
-        </Text>
-      </View>
-
-      <View style={styles.right}>
+      <Pressable style={styles.info} onPress={onPressUser}>
+        <Text style={styles.name}>{profile?.name ? getFirstName(formatFullName(profile.name)) : `User #${request.req_user_id}`}</Text>
         <StatusBadge
           status={requestStatusKey(request.status)}
           label={requestStatusLabel(request.status)}
         />
+      </Pressable>
+
+      <View style={styles.right}>
 
         {showActions ? (
           <View style={styles.actions}>
@@ -67,18 +66,17 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   name: {
     ...typography.heading,
     color: colors.foreground,
   },
-  batch: {
-    ...typography.caption,
-    color: colors.mutedForeground,
-    marginTop: spacing.xs,
-  },
   right: {
     alignItems: 'flex-end',
+    justifyContent: 'center',
     gap: spacing.sm,
   },
   actions: {
