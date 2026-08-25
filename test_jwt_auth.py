@@ -50,7 +50,7 @@ def test_missing_jwt():
 def test_invalid_jwt():
     res = client.get("/users/me/cab-queries", headers={"Authorization": "Bearer invalid"})
     assert res.status_code == 401
-    
+
 def test_expired_jwt():
     import security
     original_expire = security.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -73,17 +73,17 @@ def test_create_ride_ownership():
     data = res.json()
     assert data["user_id"] == 1
     cab_id = data["cab_id"]
-    
+
     res2 = client.post("/cab-queries", json=payload, headers=headers_u2)
     assert res2.status_code == 200
     cab_id2 = res2.json()["cab_id"]
     assert res2.json()["user_id"] == 2
-    
+
     # Verify different users get different specific results
     res_me1 = client.get("/users/me/cab-queries", headers=headers_u1)
     assert len(res_me1.json()) == 1
     assert res_me1.json()[0]["cab_id"] == cab_id
-    
+
     res_me2 = client.get("/users/me/cab-queries", headers=headers_u2)
     assert len(res_me2.json()) == 1
     assert res_me2.json()[0]["cab_id"] == cab_id2
@@ -91,7 +91,7 @@ def test_create_ride_ownership():
 def test_cross_user_ride_modification():
     res = client.patch("/cab-queries/1", json={"seats_avbl": 2}, headers=headers_u2)
     assert res.status_code == 403
-    
+
     res = client.patch("/cab-queries/1", json={"seats_avbl": 2}, headers=headers_u1)
     assert res.status_code == 200
 
@@ -100,23 +100,74 @@ def test_create_request_and_ownership():
     assert res.status_code == 200
     req_id = res.json()["req_id"]
     assert res.json()["req_user_id"] == 2
-    
+
     res_self = client.post("/cab-queries/1/request", headers=headers_u1)
     assert res_self.status_code == 403
-    
+
     res_del_driver = client.delete(f"/cab-requests/{req_id}", headers=headers_u1)
     assert res_del_driver.status_code == 403
-    
+
     res_patch_req = client.patch(f"/cab-requests/{req_id}", json={"status": "Accepted"}, headers=headers_u2)
     assert res_patch_req.status_code == 403
-    
+
     res_patch_driver = client.patch(f"/cab-requests/{req_id}", json={"status": "Accepted"}, headers=headers_u1)
     assert res_patch_driver.status_code == 200
 
 def test_view_requests_ownership():
     res = client.get("/cab-queries/1/requests", headers=headers_u2)
     assert res.status_code == 403
-    
+
+    res = client.get("/cab-queries/1/requests", headers=headers_u1)
+    assert res.status_code == 200
+
+def test_get_user_profile():
+    # Test valid JWT + existing user
+    res = client.get("/users/1", headers=headers_u1)
+    assert res.status_code == 200
+    data = res.json()
+    assert "user_id" in data
+    assert "name" in data
+    assert "roll_no" in data
+    assert "phone_no" in data
+    assert "email_id" in data
+    assert "google_sub" not in data # Ensure sensitive info is not leaked
+
+    # Test valid JWT + nonexistent user
+    res = client.get("/users/999", headers=headers_u1)
+    assert res.status_code == 404
+
+def test_get_user_profile_unauthenticated():
+    res = client.get("/users/1")
+    assert res.status_code == 401
+
+    res = client.get("/users/1", headers={"Authorization": "Bearer invalid"})
+    assert res.status_code == 401
+
+def test_cab_search():
+    client.post("/cab-queries", json={
+        "travel_date": "2024-12-01",
+        "from_loc": "Airport",
+        "to_loc": "Campus",
+        "dep_time": "10:00:00",
+        "seats_avbl": 3
+    }, headers=headers_u1)
+
+    client.post("/cab-queries", json={
+        "travel_date": "2024-12-02",
+        "from_loc": "Campus",
+        "to_loc": "AIRPORT",
+        "dep_time": "11:00:00",
+        "seats_avbl": 2
+    }, headers=headers_u2)
+
+    # Case insensitive partial search on both fields
+    res = client.get("/cab-queries?loc=airpo")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) >= 2
+    locations = [d["from_loc"].lower() + d["to_loc"].lower() for d in data]
+    assert any("airport" in loc for loc in locations)
+
     res = client.get("/cab-queries/1/requests", headers=headers_u1)
     assert res.status_code == 200
     assert len(res.json()) == 1

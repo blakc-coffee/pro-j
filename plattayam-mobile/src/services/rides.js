@@ -40,3 +40,7 @@ export function updateRequestStatus(requestId, status) {
     body: JSON.stringify({ status }),
   });
 }
+
+export function getUserProfile(userId) {
+  return apiRequest(`/users/${userId}`);
+}

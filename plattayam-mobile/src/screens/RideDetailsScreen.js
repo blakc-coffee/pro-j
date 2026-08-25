@@ -7,6 +7,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import RequestRow from '../components/RequestRow';
 import ScreenState from '../components/ScreenState';
 import StatusBadge from '../components/StatusBadge';
+import UserProfileModal from '../components/UserProfileModal';
 import { colors } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import { radius, spacing } from '../constants/spacing';
@@ -17,8 +18,9 @@ import {
   listMyRequests,
   listRideRequests,
   updateRequestStatus,
+  getUserProfile,
 } from '../services/rides';
-import { formatDate, formatTime, requestStatusKey, requestStatusLabel, rideStatusKey } from '../utils/format';
+import { formatDate, formatTime, formatFullName, getFirstName, requestStatusKey, requestStatusLabel, rideStatusKey } from '../utils/format';
 
 export default function RideDetailsScreen() {
   const { user } = useAuth();
@@ -32,6 +34,36 @@ export default function RideDetailsScreen() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
+  const [profileRequest, setProfileRequest] = useState(null);
+  const [profiles, setProfiles] = useState({});
+  const [profileData, setProfileData] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [creatorProfile, setCreatorProfile] = useState(null);
+  const [creatorProfileLoading, setCreatorProfileLoading] = useState(false);
+  const [creatorModalVisible, setCreatorModalVisible] = useState(false);
+
+  async function openProfile(request) {
+    setProfileRequest(request);
+
+    // Check if we already fetched this profile
+    const cachedProfile = profiles[request.req_user_id];
+    if (cachedProfile) {
+      setProfileData(cachedProfile);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfileData(null);
+    setProfileLoading(true);
+    try {
+      const data = await getUserProfile(request.req_user_id);
+      setProfileData(data);
+    } catch (err) {
+      console.log('Failed to fetch profile', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  }
 
   const loadDetails = useCallback(async () => {
     if (!cabId) {
@@ -45,10 +77,40 @@ export default function RideDetailsScreen() {
     try {
       const nextRide = await getRide(cabId);
       setRide(nextRide);
+
+      setCreatorProfileLoading(true);
+      try {
+        const cProfile = await getUserProfile(nextRide.user_id);
+        setCreatorProfile(cProfile);
+      } catch (err) {
+        console.log('Failed to fetch creator profile', err);
+        setCreatorProfile(null);
+      } finally {
+        setCreatorProfileLoading(false);
+      }
+
       const isOwner = user && nextRide && Number(nextRide.user_id) === Number(user.user_id);
       if (isOwner) {
-        setRequests(await listRideRequests(cabId));
+        const reqs = await listRideRequests(cabId);
+        setRequests(reqs);
         setMyRequest(null);
+
+        // Fetch profiles
+        const newProfiles = { ...profiles };
+        const missingUserIds = [...new Set(reqs.map(r => r.req_user_id))].filter(id => !newProfiles[id]);
+
+        if (missingUserIds.length > 0) {
+          await Promise.all(
+            missingUserIds.map(async (id) => {
+              try {
+                newProfiles[id] = await getUserProfile(id);
+              } catch (err) {
+                console.log('Failed to fetch profile for', id, err);
+              }
+            })
+          );
+          setProfiles(newProfiles);
+        }
       } else {
         const allRequests = await listMyRequests();
         setMyRequest((allRequests || []).find((item) => Number(item.cab_id) === Number(cabId)) || null);
@@ -59,7 +121,7 @@ export default function RideDetailsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [cabId]);
+  }, [cabId, profiles]);
 
   useFocusEffect(useCallback(() => { loadDetails(); }, [loadDetails]));
 
@@ -104,7 +166,18 @@ export default function RideDetailsScreen() {
                 </View>
                 <Text style={styles.meta}>{formatDate(ride.travel_date)} · {formatTime(ride.dep_time)}</Text>
                 <Text style={styles.seats}>{ride.seats_avbl} seats remaining</Text>
-                <Text style={styles.owner}>Posted by user #{ride.user_id}</Text>
+                <Text style={styles.owner}>
+                  Posted by{' '}
+                  {creatorProfileLoading ? (
+                    <Text>Loading...</Text>
+                  ) : (
+                    <Text onPress={() => setCreatorModalVisible(true)}>
+                      {creatorProfile?.name
+                        ? getFirstName(formatFullName(creatorProfile.name))
+                        : `User #${ride.user_id}`}
+                    </Text>
+                  )}
+                </Text>
               </View>
 
               {owner ? (
@@ -114,10 +187,12 @@ export default function RideDetailsScreen() {
                     <RequestRow
                       key={request.req_id}
                       request={request}
+                      profile={profiles[request.req_user_id]}
                       showActions={requestStatusKey(request.status) === 'pending'}
                       busy={updatingId === request.req_id}
                       onAccept={() => updateRequest(request.req_id, 'Accepted')}
                       onReject={() => updateRequest(request.req_id, 'Rejected')}
+                      onPressUser={() => openProfile(request)}
                     />
                   )) : <Text style={styles.empty}>No one has requested to join yet.</Text>}
                 </View>
@@ -133,6 +208,27 @@ export default function RideDetailsScreen() {
           ) : null}
         </ScrollView>
       </ScreenState>
+
+      <UserProfileModal
+        visible={!!profileRequest || creatorModalVisible}
+        userId={profileRequest ? profileRequest.req_user_id : ride?.user_id}
+        request={profileRequest}
+        profile={profileRequest ? profileData : creatorProfile}
+        loading={profileRequest ? profileLoading : creatorProfileLoading}
+        onClose={() => {
+          setProfileRequest(null);
+          setCreatorModalVisible(false);
+        }}
+        busy={profileRequest && updatingId === profileRequest.req_id}
+        onAccept={() => {
+          if (profileRequest) updateRequest(profileRequest.req_id, 'Accepted');
+          setProfileRequest(null);
+        }}
+        onReject={() => {
+          if (profileRequest) updateRequest(profileRequest.req_id, 'Rejected');
+          setProfileRequest(null);
+        }}
+      />
     </View>
   );
 }

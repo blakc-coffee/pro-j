@@ -52,7 +52,16 @@ class AuthResponse(BaseModel):
     email_id: str | None = None
     name: str
     onboarding_required: bool
-    
+
+class UserPublicOut(BaseModel):
+    user_id: int
+    roll_no: str | None = None
+    name: str
+    phone_no: str | None = None
+    email_id: str | None = None
+    gender: str | None = None
+    model_config={"from_attributes":True}
+
 
 class CabQueryOut(BaseModel):
 

@@ -6,7 +6,8 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 import requests as std_requests
 import re
-from model import CabQuery, CabQueryOut,CabQueryCreate, CabQueryUpdate, CabRequestOut, CabRequestUpdate, CabRequests,UserLogin, GoogleAuthRequest, AuthResponse, Users
+from sqlalchemy import or_
+from model import CabQuery, CabQueryOut,CabQueryCreate, CabQueryUpdate, CabRequestOut, CabRequestUpdate, CabRequests,UserLogin, GoogleAuthRequest, AuthResponse, Users, UserPublicOut
 from database import get_db
 from security import create_access_token, get_current_user
 app=FastAPI()
@@ -236,7 +237,10 @@ def delete_ride(cab_id: int ,db=Depends(get_db), current_user: Users = Depends(g
 def search_location(loc :str=None , db=Depends(get_db)):
     query=db.query(CabQuery)
     if(loc!=None):
-        query=query.filter(CabQuery.from_loc.contains(loc))
+        query=query.filter(or_(
+            CabQuery.from_loc.ilike(f"%{loc}%"),
+            CabQuery.to_loc.ilike(f"%{loc}%")
+        ))
     return query.all()
 
 # to serach for a cab ride in db
@@ -246,6 +250,13 @@ def search_cab(cab_id : int,db=Depends(get_db)):
     if query is None:
         raise HTTPException(status_code=404, detail="Ride not found")
     return query
+
+@app.get("/users/{user_id}", response_model=UserPublicOut)
+def get_user_profile(user_id: int, db=Depends(get_db), current_user: Users = Depends(get_current_user)):
+    user = db.query(Users).filter(Users.user_id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 @app.get("/users/me/cab-queries",response_model=list[CabQueryOut])

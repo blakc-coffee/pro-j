@@ -29,11 +29,11 @@ export default function CabsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadRides = useCallback(async (location = '') => {
+  const loadRides = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await listRides(location.trim());
+      const data = await listRides();
       setRides(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message);
@@ -49,16 +49,21 @@ export default function CabsScreen() {
   );
 
   const visibleRides = useMemo(() => {
+    const query = search.trim().toLowerCase();
     return rides.filter((ride) => {
-      if (filter === 'Open') {
-        return !isFullRide(ride);
-      }
-      if (filter === 'Full') {
-        return isFullRide(ride);
+      if (filter === 'Open' && isFullRide(ride)) return false;
+      if (filter === 'Full' && !isFullRide(ride)) return false;
+
+      if (query) {
+        const from = (ride.from_loc || '').toLowerCase();
+        const to = (ride.to_loc || '').toLowerCase();
+        if (!from.includes(query) && !to.includes(query)) {
+          return false;
+        }
       }
       return true;
     });
-  }, [rides, filter]);
+  }, [rides, filter, search]);
 
   return (
     <View style={styles.screen}>
@@ -71,8 +76,7 @@ export default function CabsScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          onSubmitEditing={() => loadRides(search)}
-          placeholder="Search from location"
+          placeholder="Search by from or to location..."
           placeholderTextColor={colors.mutedForeground}
           style={styles.search}
           returnKeyType="search"

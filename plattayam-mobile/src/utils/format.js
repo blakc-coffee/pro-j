@@ -57,6 +57,25 @@ export function requestStatusKey(status) {
   return 'neutral';
 }
 
+export function formatFullName(rawName) {
+  if (!rawName) return null;
+  let cleanName = rawName.trim();
+  const rollMatch = cleanName.match(/^([0-9a-zA-Z]{10,12})\s+(.+)$/i);
+  if (rollMatch) {
+    cleanName = rollMatch[2];
+  }
+
+  return cleanName.split(/\s+/).map(word => {
+    if (word.length === 1) return word.toUpperCase();
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+export function getFirstName(formattedName) {
+  if (!formattedName) return null;
+  return formattedName.split(/\s+/)[0];
+}
+
 export function requestStatusLabel(status) {
   const key = requestStatusKey(status);
   if (key === 'pending') {
