@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../constants/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function formatApiError(data, status) {
   if (typeof data === 'string' && data.trim()) {
@@ -29,10 +30,20 @@ export async function apiRequest(path, options = {}) {
 
   let response;
   try {
+    const stored = await AsyncStorage.getItem('plattayam.user');
+    let token = null;
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        token = user.access_token;
+      } catch (e) {}
+    }
+
     response = await fetch(`${baseUrl}${path}`, {
       headers: {
         Accept: 'application/json',
         ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
       body,

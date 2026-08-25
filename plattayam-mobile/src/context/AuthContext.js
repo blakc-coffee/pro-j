@@ -28,14 +28,10 @@ export function AuthProvider({ children }) {
     restoreUser();
   }, []);
 
-  async function login(email_id, password) {
-    await loginRequest(email_id, password);
-    const nextUser = {
-      email_id,
-      user_id: CURRENT_USER_ID,
-    };
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-    setUser(nextUser);
+  async function login(roll_no, password) {
+    const data = await loginRequest(roll_no, password);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    setUser(data);
   }
 
   async function logout() {

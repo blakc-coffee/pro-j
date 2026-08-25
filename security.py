@@ -24,15 +24,18 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credentials.credentials
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if credentials is None:
+        raise credentials_exception
+        
+    token = credentials.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")

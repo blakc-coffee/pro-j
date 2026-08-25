@@ -1,8 +1,8 @@
 import { apiRequest } from './api';
 
-export function loginRequest(email_id, password) {
-  return apiRequest('/login', {
+export function loginRequest(roll_no, password) {
+  return apiRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email_id, password }),
+    body: JSON.stringify({ email_id: roll_no, password }),
   });
 }

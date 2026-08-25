@@ -2,6 +2,7 @@
   "expo": {
     "name": "plattayam-mobile",
     "slug": "plattayam-mobile",
+    "scheme": "plattayam",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -35,3 +36,4 @@
     ]
   }
 }
+

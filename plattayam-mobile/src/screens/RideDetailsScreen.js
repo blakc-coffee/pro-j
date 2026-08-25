@@ -8,7 +8,7 @@ import RequestRow from '../components/RequestRow';
 import ScreenState from '../components/ScreenState';
 import StatusBadge from '../components/StatusBadge';
 import { colors } from '../constants/colors';
-import { CURRENT_USER_ID } from '../constants/config';
+import { useAuth } from '../context/AuthContext';
 import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import {
@@ -21,6 +21,7 @@ import {
 import { formatDate, formatTime, requestStatusKey, requestStatusLabel, rideStatusKey } from '../utils/format';
 
 export default function RideDetailsScreen() {
+  const { user } = useAuth();
   const navigation = useNavigation();
   const route = useRoute();
   const cabId = route.params?.cabId;
@@ -44,8 +45,8 @@ export default function RideDetailsScreen() {
     try {
       const nextRide = await getRide(cabId);
       setRide(nextRide);
-      const owner = Number(nextRide.user_id) === CURRENT_USER_ID;
-      if (owner) {
+      const isOwner = user && nextRide && Number(nextRide.user_id) === Number(user.user_id);
+      if (isOwner) {
         setRequests(await listRideRequests(cabId));
         setMyRequest(null);
       } else {
@@ -86,7 +87,7 @@ export default function RideDetailsScreen() {
     }
   }
 
-  const owner = ride && Number(ride.user_id) === CURRENT_USER_ID;
+  const owner = ride && user && Number(ride.user_id) === Number(user.user_id);
   const full = ride && rideStatusKey(ride) === 'full';
 
   return (
