@@ -51,7 +51,7 @@ export function requestStatusKey(status) {
   if (value === 'rejected') {
     return 'rejected';
   }
-  if (value === 'pending' || value === 'open') {
+  if (value === 'pending' || value === 'open' || value === 'requested') {
     return 'pending';
   }
   return 'neutral';
@@ -90,3 +90,18 @@ export function requestStatusLabel(status) {
   return status || 'Unknown';
 }
 
+export function isRideCreator(ride, userOrUserId) {
+  if (!ride || !userOrUserId) return false;
+  const currentUserId =
+    typeof userOrUserId === 'object'
+      ? (userOrUserId.user_id ?? userOrUserId.id)
+      : userOrUserId;
+  const creatorId = ride.user_id ?? ride.userId ?? ride.creator_id;
+  if (!creatorId || !currentUserId) return false;
+  return Number(creatorId) === Number(currentUserId);
+}
+
+export function getUserRequestForRide(myRequests, cabId) {
+  if (!Array.isArray(myRequests) || !cabId) return null;
+  return myRequests.find((r) => Number(r.cab_id) === Number(cabId)) || null;
+}

@@ -1,42 +1,39 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import Card from './Card';
 import { colors } from '../constants/colors';
-import { radius, spacing } from '../constants/spacing';
+import { spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 
-export default function ComingSoon({ title, description }) {
+export default function ComingSoon({ title, subtitle }) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.kicker}>Coming soon</Text>
+    <Card padding="xl" style={styles.card}>
+      <Text style={styles.kicker}>Feature In Development</Text>
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.description}>{description}</Text>
-    </View>
+      <Text style={styles.subtitle}>{subtitle}</Text>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
+    margin: spacing.lg,
+    alignItems: 'flex-start',
   },
   kicker: {
     ...typography.caption,
     color: colors.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   title: {
     ...typography.heading,
     color: colors.foreground,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  description: {
-    ...typography.body,
+  subtitle: {
+    ...typography.subtitle,
     color: colors.mutedForeground,
-    lineHeight: 22,
   },
 });
