@@ -10,13 +10,26 @@ export default function PrimaryButton({
   disabled,
   loading,
   tone = 'primary',
+  style,
+  textStyle,
 }) {
-  const backgroundColor =
-    tone === 'accent'
-      ? colors.accent
-      : tone === 'destructive'
-        ? colors.destructive
-        : colors.primary;
+  const isOutline = tone === 'outline';
+
+  const backgroundColor = isOutline
+    ? colors.card
+    : tone === 'accent'
+    ? colors.accent
+    : tone === 'destructive'
+    ? colors.destructive
+    : tone === 'secondary'
+    ? colors.surfaceAlt
+    : colors.primary;
+
+  const textColor = isOutline
+    ? colors.primary
+    : tone === 'secondary'
+    ? colors.foreground
+    : colors.primaryForeground;
 
   return (
     <Pressable
@@ -25,14 +38,20 @@ export default function PrimaryButton({
       style={({ pressed }) => [
         styles.button,
         { backgroundColor },
+        isOutline && styles.outlineButton,
         (disabled || loading) && styles.disabled,
         pressed && styles.pressed,
+        style,
       ]}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!(disabled || loading) }}
     >
       {loading ? (
-        <ActivityIndicator color={colors.primaryForeground} />
+        <ActivityIndicator color={textColor} />
       ) : (
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, { color: textColor }, textStyle]}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -40,22 +59,27 @@ export default function PrimaryButton({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    borderRadius: radius.sm, // 8px button radius
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 44,
+  },
+  outlineButton: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
   },
   disabled: {
     opacity: 0.5,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.88,
   },
   label: {
     ...typography.body,
-    fontWeight: '700',
-    color: colors.primaryForeground,
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

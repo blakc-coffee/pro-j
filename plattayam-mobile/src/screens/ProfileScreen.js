@@ -1,120 +1,208 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 import AppHeader from '../components/AppHeader';
+import AppShell from '../components/AppShell';
+import Card from '../components/Card';
+import FormInput from '../components/FormInput';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../constants/colors';
-import { radius, spacing } from '../constants/spacing';
+import { spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { useAuth } from '../context/AuthContext';
-import { listMyRequests, listMyRides } from '../services/rides';
-import { requestStatusKey } from '../utils/format';
+import { getUserProfile, updateUserProfile } from '../features/rides/services/rides';
+import { formatFullName } from '../utils/format';
 
 export default function ProfileScreen() {
-  const navigation = useNavigation();
   const { user, logout } = useAuth();
-  const [posted, setPosted] = useState(0);
-  const [joined, setJoined] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const loadStats = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [rides, requests] = await Promise.all([
-        listMyRides(),
-        listMyRequests(),
-      ]);
-      setPosted(Array.isArray(rides) ? rides.length : 0);
-      setJoined(
-        (Array.isArray(requests) ? requests : []).filter(
-          (item) => requestStatusKey(item.status) === 'accepted'
-        ).length
-      );
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  const [profileData, setProfileData] = useState(null);
+
+  // Phone editing state
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+
+  const currentUserId = user?.user_id ?? user?.id;
+
+  const loadData = useCallback(async () => {
+    if (currentUserId) {
+      try {
+        const p = await getUserProfile(currentUserId);
+        setProfileData(p);
+      } catch {}
     }
-  }, []);
+  }, [currentUserId]);
 
   useFocusEffect(
     useCallback(() => {
-      loadStats();
-    }, [loadStats])
+      loadData();
+    }, [loadData])
   );
 
+  const rawName = profileData?.name || user?.name || user?.roll_no || 'Campus User';
+  const fullName = formatFullName(rawName) || rawName;
+  const email =
+    profileData?.email_id ||
+    user?.email_id ||
+    (user?.roll_no ? `${user.roll_no}@iiitkottayam.ac.in` : 'Not available');
+  const currentPhone = profileData?.phone_no || user?.phone_no || 'Not available';
+
+  function handleStartEdit() {
+    setPhoneInput(profileData?.phone_no || user?.phone_no || '');
+    setPhoneError('');
+    setIsEditingPhone(true);
+  }
+
+  function handleCancelEdit() {
+    setPhoneInput(profileData?.phone_no || user?.phone_no || '');
+    setPhoneError('');
+    setIsEditingPhone(false);
+  }
+
+  function validatePhone(val) {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      return 'Phone number cannot be empty';
+    }
+    const digitsOnly = trimmed.replace(/\D/g, '');
+    if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+      return 'Please enter a valid phone number (7-15 digits)';
+    }
+    return '';
+  }
+
+  async function handleSavePhone() {
+    const err = validatePhone(phoneInput);
+    if (err) {
+      setPhoneError(err);
+      return;
+    }
+    setPhoneError('');
+    setIsSavingPhone(true);
+    try {
+      const updated = await updateUserProfile({ phone_no: phoneInput.trim() });
+      setProfileData(updated);
+      setIsEditingPhone(false);
+    } catch (saveErr) {
+      setPhoneError(saveErr.message || 'Failed to save phone number');
+    } finally {
+      setIsSavingPhone(false);
+    }
+  }
+
   return (
-    <View style={styles.screen}>
-      <AppHeader title="Profile" subtitle="Your campus account" />
+    <AppShell>
+      <View style={styles.screen}>
+        <AppHeader title="Profile" subtitle="Your campus account" />
 
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <View style={styles.body}>
-          <View style={styles.card}>
-            <Text style={styles.name}>{user?.email_id?.split('@')[0]}</Text>
-            <Text style={styles.email}>{user?.email_id}</Text>
-            <Text style={styles.note}>
-              The backend has no profile endpoint, so name and batch are not
-              loaded from the database.
-            </Text>
-          </View>
-
-          <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{posted}</Text>
-              <Text style={styles.statLabel}>Rides posted</Text>
+        <ScrollView contentContainerStyle={styles.body}>
+          {/* Main User Identity Card */}
+          <Card padding="lg" style={styles.userCard}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardKicker}>PROFILE</Text>
+              {user?.roll_no ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{user.roll_no}</Text>
+                </View>
+              ) : null}
             </View>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{joined}</Text>
-              <Text style={styles.statLabel}>Rides joined</Text>
+
+            {/* Read-Only Full Name */}
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Full Name</Text>
+              <Text style={styles.fieldValue}>{fullName}</Text>
             </View>
+
+            <View style={styles.divider} />
+
+            {/* Editable Phone / Contact */}
+            <View style={styles.fieldSection}>
+              {isEditingPhone ? (
+                <View style={styles.editSection}>
+                  <Text style={styles.fieldLabel}>Phone / Contact</Text>
+                  <FormInput
+                    value={phoneInput}
+                    onChangeText={(text) => {
+                      setPhoneInput(text);
+                      if (phoneError) setPhoneError('');
+                    }}
+                    placeholder="Enter phone number (e.g. 9876543210)"
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                    error={phoneError}
+                    editable={!isSavingPhone}
+                    style={styles.phoneInput}
+                  />
+                  <View style={styles.editActions}>
+                    <Pressable
+                      onPress={handleCancelEdit}
+                      disabled={isSavingPhone}
+                      style={styles.cancelButton}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel editing phone number"
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={handleSavePhone}
+                      disabled={isSavingPhone}
+                      style={[styles.saveButton, isSavingPhone && styles.saveButtonDisabled]}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Save phone number"
+                    >
+                      <Text style={styles.saveButtonText}>
+                        {isSavingPhone ? 'Saving...' : 'Save'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  <View style={styles.fieldHeaderRow}>
+                    <Text style={styles.fieldLabel}>Phone / Contact</Text>
+                    <Pressable
+                      onPress={handleStartEdit}
+                      style={styles.editTrigger}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit phone number"
+                    >
+                      <Text style={styles.editTriggerText}>Edit</Text>
+                    </Pressable>
+                  </View>
+                  <Text
+                    style={[
+                      styles.fieldValue,
+                      currentPhone === 'Not available' && styles.mutedValue,
+                    ]}
+                  >
+                    {currentPhone}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Read-Only Email Address */}
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Email Address</Text>
+              <Text style={styles.fieldValue}>{email}</Text>
+            </View>
+          </Card>
+
+          <View style={styles.logoutWrap}>
+            <PrimaryButton label="Logout" tone="destructive" onPress={logout} />
           </View>
-
-          {error ? (
-            <Pressable style={styles.errorCard} onPress={loadStats}>
-              <Text style={styles.errorTitle}>Could not refresh ride counts</Text>
-              <Text style={styles.errorText}>{error} Tap to retry.</Text>
-            </Pressable>
-          ) : null}
-
-          <Pressable
-            style={styles.row}
-            onPress={() => navigation.navigate('MyRides')}
-          >
-            <Text style={styles.rowTitle}>My Rides & Requests</Text>
-            <Text style={styles.rowHint}>Posted rides and join requests</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.row}
-            onPress={() =>
-              Alert.alert('Notifications', 'This setting is not in the backend.')
-            }
-          >
-            <Text style={styles.rowTitle}>Notifications</Text>
-            <Text style={styles.rowHint}>Placeholder</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.row}
-            onPress={() =>
-              Alert.alert('Privacy & Safety', 'This setting is not in the backend.')
-            }
-          >
-            <Text style={styles.rowTitle}>Privacy & Safety</Text>
-            <Text style={styles.rowHint}>Placeholder</Text>
-          </Pressable>
-
-          <PrimaryButton label="Logout" tone="destructive" onPress={logout} />
-        </View>
-      )}
-    </View>
+        </ScrollView>
+      </View>
+    </AppShell>
   );
 }
 
@@ -125,87 +213,119 @@ const styles = StyleSheet.create({
   },
   body: {
     padding: spacing.lg,
-    gap: spacing.md,
   },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  userCard: {
+    marginBottom: spacing.lg,
   },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-  },
-  name: {
-    ...typography.title,
-    fontSize: 24,
-    color: colors.foreground,
-  },
-  email: {
-    ...typography.body,
-    color: colors.mutedForeground,
-    marginTop: spacing.xs,
-  },
-  note: {
-    ...typography.caption,
-    color: colors.mutedForeground,
-    marginTop: spacing.md,
-    lineHeight: 18,
-  },
-  stats: {
+  cardHeaderRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  errorCard: {
-    backgroundColor: colors.destructiveSoft,
-    borderColor: colors.destructive,
-    borderRadius: radius.md,
+  cardKicker: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  badge: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
     borderWidth: 1,
-    padding: spacing.md,
+    borderColor: colors.border,
   },
-  errorTitle: {
+  badgeText: {
+    ...typography.caption,
+    fontWeight: '600',
+    color: colors.foreground,
+  },
+  fieldSection: {
+    marginVertical: 2,
+  },
+  fieldHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  fieldLabel: {
+    ...typography.caption,
+    color: colors.mutedForeground,
+    marginBottom: 4,
+  },
+  fieldValue: {
+    ...typography.subheading,
+    color: colors.foreground,
+  },
+  mutedValue: {
+    color: colors.mutedForeground,
+  },
+  editTrigger: {
+    minHeight: 36,
+    minWidth: 48,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  editTriggerText: {
     ...typography.label,
-    color: colors.destructive,
+    color: colors.primary,
+    fontWeight: '600',
   },
-  errorText: {
-    ...typography.caption,
-    color: colors.destructive,
+  editSection: {
+    marginTop: 2,
+  },
+  phoneInput: {
+    marginBottom: 0,
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
     marginTop: spacing.xs,
   },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
+  cancelButton: {
+    minHeight: 44,
+    minWidth: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg,
   },
-  statValue: {
-    ...typography.title,
+  cancelButtonText: {
+    ...typography.label,
     color: colors.foreground,
+    fontWeight: '500',
   },
-  statLabel: {
-    ...typography.caption,
-    color: colors.mutedForeground,
-    marginTop: spacing.xs,
+  saveButton: {
+    minHeight: 44,
+    minWidth: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
   },
-  row: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
-  rowTitle: {
-    ...typography.heading,
-    color: colors.foreground,
+  saveButtonText: {
+    ...typography.label,
+    color: colors.white,
+    fontWeight: '600',
   },
-  rowHint: {
-    ...typography.caption,
-    color: colors.mutedForeground,
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
+  },
+  logoutWrap: {
     marginTop: spacing.xs,
   },
 });

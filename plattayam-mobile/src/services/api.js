@@ -1,6 +1,13 @@
 import { getApiBaseUrl } from '../constants/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+let onUnauthorizedCallback = null;
+let isHandlingUnauthorized = false;
+
+export function setOnUnauthorized(callback) {
+  onUnauthorizedCallback = callback;
+}
+
 function formatApiError(data, status) {
   if (typeof data === 'string' && data.trim()) {
     return data;
@@ -29,9 +36,9 @@ export async function apiRequest(path, options = {}) {
   const { headers, body, ...rest } = options;
 
   let response;
+  let token = null;
   try {
     const stored = await AsyncStorage.getItem('plattayam.user');
-    let token = null;
     if (stored) {
       try {
         const user = JSON.parse(stored);
@@ -42,6 +49,7 @@ export async function apiRequest(path, options = {}) {
     response = await fetch(`${baseUrl}${path}`, {
       headers: {
         Accept: 'application/json',
+        'Bypass-Tunnel-Reminder': 'true',
         ...(body ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
@@ -66,6 +74,26 @@ export async function apiRequest(path, options = {}) {
       data = JSON.parse(text);
     } catch {
       data = text;
+    }
+  }
+
+  if (response.status === 401) {
+    // 401 on protected requests indicates an expired or invalid JWT token.
+    // We do NOT treat unauthenticated login attempts as session expiry.
+    const isLoginEndpoint = path === '/login' || path.startsWith('/auth/login') || path.startsWith('/auth/google');
+    if (!isLoginEndpoint && token) {
+      if (!isHandlingUnauthorized) {
+        isHandlingUnauthorized = true;
+        AsyncStorage.removeItem('plattayam.user').catch(() => {});
+        if (typeof onUnauthorizedCallback === 'function') {
+          try {
+            onUnauthorizedCallback();
+          } catch (e) {}
+        }
+        setTimeout(() => {
+          isHandlingUnauthorized = false;
+        }, 1000);
+      }
     }
   }
 
