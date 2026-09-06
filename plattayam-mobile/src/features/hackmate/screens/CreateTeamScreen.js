@@ -67,19 +67,23 @@ export default function CreateTeamScreen() {
         contact: contact.trim() || undefined,
       });
 
-      Alert.alert(
-        'Team Created',
-        `Your team "${name.trim()}" is now published on the HackMate marketplace!`,
-        [
-          {
-            text: 'View Marketplace',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      if (Platform.OS === 'web') {
+        window.alert(`Your team "${name.trim()}" is now published on the HackMate marketplace!`);
+        navigation.goBack();
+      } else {
+        Alert.alert(
+          'Team Created',
+          `Your team "${name.trim()}" is now published on the HackMate marketplace!`,
+          [
+            {
+              text: 'View Marketplace',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      }
     } catch (err) {
       setError(err.message || 'Failed to create team.');
-    } finally {
       setLoading(false);
     }
   };
