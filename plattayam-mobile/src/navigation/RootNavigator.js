@@ -14,6 +14,9 @@ import HackFindHubScreen from '../features/hackmate/screens/HackFindHubScreen';
 import MyTeamsScreen from '../features/hackmate/screens/MyTeamsScreen';
 import TeamDetailsScreen from '../features/hackmate/screens/TeamDetailsScreen';
 import TeamRequestsScreen from '../features/hackmate/screens/TeamRequestsScreen';
+import ItemDetailsScreen from '../features/lost-found/screens/ItemDetailsScreen';
+import MyItemsScreen from '../features/lost-found/screens/MyItemsScreen';
+import ReportItemScreen from '../features/lost-found/screens/ReportItemScreen';
 import TabNavigator from './TabNavigator';
 
 const Stack = createNativeStackNavigator();
@@ -49,6 +52,10 @@ export default function RootNavigator() {
           <Stack.Screen name="CandidateProfile" component={CandidateProfileScreen} />
           <Stack.Screen name="CreateProfileCard" component={CreateProfileCardScreen} />
           <Stack.Screen name="TeamRequests" component={TeamRequestsScreen} />
+          {/* Lost & Found Stack Routes */}
+          <Stack.Screen name="ReportItem" component={ReportItemScreen} />
+          <Stack.Screen name="ItemDetails" component={ItemDetailsScreen} />
+          <Stack.Screen name="MyItems" component={MyItemsScreen} />
         </>
       ) : (
         <Stack.Screen name="Login" component={LoginScreen} />

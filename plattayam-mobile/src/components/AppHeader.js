@@ -9,17 +9,19 @@ export default function AppHeader({
   title,
   subtitle,
   onBack,
+  onBackPress,
   actionLabel,
   onAction,
 }) {
   const insets = useSafeAreaInsets();
+  const handleBack = onBack || onBackPress;
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.row}>
-        {onBack ? (
+        {handleBack ? (
           <Pressable
-            onPress={onBack}
+            onPress={handleBack}
             style={styles.backButton}
             hitSlop={8}
             accessibilityLabel="Go back"

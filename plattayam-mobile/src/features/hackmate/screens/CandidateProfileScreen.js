@@ -22,6 +22,7 @@ import { typography } from '../../../constants/typography';
 import { useAuth } from '../../../context/AuthContext';
 import { getPerson } from '../services/hackfind';
 import { formatFullName } from '../../../utils/format';
+import AvailabilityBadge from '../components/AvailabilityBadge';
 
 export default function CandidateProfileScreen() {
   const navigation = useNavigation();
@@ -67,7 +68,6 @@ export default function CandidateProfileScreen() {
     );
   };
 
-  const isOpen = person?.status === 'open_to_join';
   const isSelf =
     route.params?.isSelf ||
     (person && String(person.userId || person.user_id || '') === currentUserId);
@@ -104,9 +104,7 @@ export default function CandidateProfileScreen() {
                 {/* Role + Status Row */}
                 <View style={styles.roleRow}>
                   <Text style={styles.role}>{person.role}</Text>
-                  <Text style={[styles.statusText, isOpen ? styles.statusOpen : styles.statusFound]}>
-                    {isOpen ? 'OPEN TO JOIN' : 'TEAM FOUND'}
-                  </Text>
+                  <AvailabilityBadge status={person?.status} />
                 </View>
 
                 {/* Hackathon Event Tag */}

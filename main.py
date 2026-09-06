@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, HTTPException
@@ -14,9 +14,11 @@ from model import (
     UserPublicOut, UserContactUpdate,
     HackFindTeam, HackFindTeamMember, HackFindTeamRequest, HackFindProfile,
     TeamCreate, TeamOut, TeamMemberOut,
-    PersonCreate, PersonOut,
+    PersonCreate, PersonUpdate, PersonOut,
     JoinRequestCreate, JoinRequestRespond, JoinRequestOut,
-    PendingRequestWithTeamOut, MyTeamsOut
+    PendingRequestWithTeamOut, MyTeamsOut,
+    LostFoundItem, LostFoundMessage, ItemCreate, ItemUpdate, ItemStatusUpdate, ItemOut,
+    MessageCreate, MessageOut
 )
 from database import get_db
 from security import create_access_token, get_current_user
@@ -35,6 +37,10 @@ cabride = [
     {"loc": "TVM", "id": 2, "date": "07/07/2007"},
     {"loc": "kottayam", "id": 3, "date": "02/02/2002"}
 ]
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "Plattayam Backend API"}
 
 @app.post("/login", status_code=200)
 def login(creds: UserLogin, db=Depends(get_db)):
@@ -197,19 +203,47 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
 
 @app.post("/cab-queries", response_model=CabQueryOut)
 def add_ride(new_ride: CabQueryCreate, db=Depends(get_db), current_user: Users = Depends(get_current_user)):
-    ride_row = CabQuery(
-        travel_date=new_ride.travel_date,
-        dep_time=new_ride.dep_time,
-        from_loc=new_ride.from_loc,
-        to_loc=new_ride.to_loc,
-        seats_avbl=new_ride.seats_avbl,
-        user_id=current_user.user_id,
-        status="open"
-    )
-    db.add(ride_row)
-    db.commit()
-    db.refresh(ride_row)
-    return ride_row
+    t_date = new_ride.travel_date or new_ride.date
+    if not t_date:
+        raise HTTPException(status_code=422, detail="travel_date is required")
+        
+    d_time = new_ride.dep_time or new_ride.time
+    if not d_time:
+        raise HTTPException(status_code=422, detail="dep_time is required")
+        
+    seats = new_ride.seats_avbl if new_ride.seats_avbl is not None else new_ride.seats
+    if seats is None:
+        raise HTTPException(status_code=422, detail="seats_avbl is required")
+
+    from_loc_val = (new_ride.from_loc or "").strip()
+    if not from_loc_val:
+        raise HTTPException(status_code=422, detail="from_loc is required")
+    if len(from_loc_val) > 50:
+        raise HTTPException(status_code=422, detail=f"from_loc cannot exceed 50 characters (got {len(from_loc_val)})")
+
+    to_loc_val = (new_ride.to_loc or "").strip()
+    if not to_loc_val:
+        raise HTTPException(status_code=422, detail="to_loc is required")
+    if len(to_loc_val) > 50:
+        raise HTTPException(status_code=422, detail=f"to_loc cannot exceed 50 characters (got {len(to_loc_val)})")
+
+    try:
+        ride_row = CabQuery(
+            travel_date=t_date,
+            dep_time=d_time,
+            from_loc=from_loc_val,
+            to_loc=to_loc_val,
+            seats_avbl=seats,
+            user_id=current_user.user_id,
+            status="open"
+        )
+        db.add(ride_row)
+        db.commit()
+        db.refresh(ride_row)
+        return ride_row
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to post ride: {str(e)}")
 
 @app.patch('/cab-queries/{cab_id}', response_model=CabQueryOut)
 def update_ride(cab_id: int, updates: CabQueryUpdate, db=Depends(get_db), current_user: Users = Depends(get_current_user)):
@@ -234,8 +268,13 @@ def delete_ride(cab_id: int, db=Depends(get_db), current_user: Users = Depends(g
         raise HTTPException(status_code=404, detail="Ride doesnt exist")
     if query.user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this ride")
-    db.delete(query)
-    db.commit()
+    try:
+        db.query(CabRequests).filter(CabRequests.cab_id == cab_id).delete(synchronize_session=False)
+        db.delete(query)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to cancel ride: {str(e)}")
 
 @app.get("/cab-queries", response_model=list[CabQueryOut])
 def search_location(loc: str = None, db=Depends(get_db)):
@@ -245,7 +284,7 @@ def search_location(loc: str = None, db=Depends(get_db)):
             CabQuery.from_loc.ilike(f"%{loc}%"),
             CabQuery.to_loc.ilike(f"%{loc}%")
         ))
-    return query.all()
+    return query.order_by(CabQuery.cab_id.desc()).all()
 
 @app.get("/cab-queries/{cab_id}", response_model=CabQueryOut)
 def search_cab(cab_id: int, db=Depends(get_db)):
@@ -276,13 +315,13 @@ def update_my_profile(
 @app.get("/users/me/cab-queries", response_model=list[CabQueryOut])
 def me_cab_query(db=Depends(get_db), current_user: Users = Depends(get_current_user)):
     user_id = current_user.user_id
-    query = db.query(CabQuery).filter(CabQuery.user_id == user_id).all()
+    query = db.query(CabQuery).filter(CabQuery.user_id == user_id).order_by(CabQuery.cab_id.desc()).all()
     return query
 
 @app.get('/users/me/cab-requests', response_model=list[CabRequestOut])
 def my_requests(db=Depends(get_db), current_user: Users = Depends(get_current_user)):
     req_user_id = current_user.user_id
-    query = db.query(CabRequests).filter(CabRequests.req_user_id == req_user_id).all()
+    query = db.query(CabRequests).filter(CabRequests.req_user_id == req_user_id).order_by(CabRequests.req_id.desc()).all()
     return query
 
 @app.post("/cab-queries/{cab_id}/request", response_model=CabRequestOut)
@@ -426,6 +465,14 @@ def serialize_team(team: HackFindTeam, db) -> TeamOut:
         members=member_outs
     )
 
+def normalize_availability_status(val: str | None) -> str:
+    if not val:
+        return "open"
+    v = str(val).strip().lower()
+    if v in ("occupied", "team_found"):
+        return "occupied"
+    return "open"
+
 def serialize_person(prof: HackFindProfile, db) -> PersonOut:
     user = db.query(Users).filter(Users.user_id == prof.user_id).first()
     name = user.name if user else f"User {prof.user_id}"
@@ -433,6 +480,7 @@ def serialize_person(prof: HackFindProfile, db) -> PersonOut:
     skills_list = parse_list(prof.skills)
     tech_list = parse_list(prof.tech_stack)
     created_str = prof.created_at.isoformat() if prof.created_at else datetime.utcnow().isoformat()
+    status = normalize_availability_status(prof.status)
 
     return PersonOut(
         id=str(prof.id),
@@ -450,7 +498,7 @@ def serialize_person(prof: HackFindProfile, db) -> PersonOut:
         about=prof.about,
         portfolio=prof.portfolio,
         contact=prof.contact,
-        status=prof.status or "open_to_join",
+        status=status,
         created_at=created_str,
         createdAt=created_str
     )
@@ -593,67 +641,149 @@ def list_hackfind_people(
             HackFindProfile.skills.ilike(q),
             HackFindProfile.tech_stack.ilike(q),
         ))
-    if filter == "Open to join":
-        query = query.filter(HackFindProfile.status == "open_to_join")
-    elif filter == "Team found":
-        query = query.filter(HackFindProfile.status == "team_found")
+    if filter in ("Open to Work", "Open to join", "open"):
+        query = query.filter(or_(HackFindProfile.status == "open", HackFindProfile.status == "open_to_join"))
+    elif filter in ("Occupied", "Team found", "occupied"):
+        query = query.filter(or_(HackFindProfile.status == "occupied", HackFindProfile.status == "team_found"))
 
     profiles = query.order_by(HackFindProfile.created_at.desc()).all()
     return [serialize_person(p, db) for p in profiles]
 
 @app.get("/hackfind/people/{person_id}", response_model=PersonOut)
 def get_hackfind_person(person_id: int, db=Depends(get_db)):
-    profile = db.query(HackFindProfile).filter(or_(
-        HackFindProfile.id == person_id,
-        HackFindProfile.user_id == person_id
-    )).first()
+    profile = db.query(HackFindProfile).filter(HackFindProfile.id == person_id).first()
+    if not profile:
+        profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == person_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
     return serialize_person(profile, db)
 
 @app.post("/hackfind/people", response_model=PersonOut)
-def create_or_update_hackfind_profile(
+def create_hackfind_profile(
     payload: PersonCreate,
     db=Depends(get_db),
     current_user: Users = Depends(get_current_user)
 ):
-    role = payload.role.strip()
-    hackathon = payload.hackathon.strip()
-    if not role or not hackathon:
-        raise HTTPException(status_code=400, detail="Role and target hackathon are required")
+    # Enforce one profile per user rule on backend
+    existing = db.query(HackFindProfile).filter(HackFindProfile.user_id == current_user.user_id).first()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="You already have a HackMate profile. Please edit your existing profile instead."
+        )
+
+    role = (payload.role or "").strip()
+    if not role:
+        raise HTTPException(status_code=400, detail="Primary Role is required")
 
     skills_val = format_list(payload.skills)
+    if not skills_val:
+        raise HTTPException(status_code=400, detail="Key Skills is required")
+
+    contact = (payload.contact or "").strip()
+    if not contact:
+        raise HTTPException(status_code=400, detail="Contact Info is required")
+
+    hackathon = (payload.hackathon or "").strip() or None
     tech_val = format_list(payload.tech_stack or payload.techStack)
 
-    profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == current_user.user_id).first()
-    if profile:
-        profile.role = role
-        profile.hackathon = hackathon
-        profile.skills = skills_val
-        profile.tech_stack = tech_val
-        profile.experience = (payload.experience or "").strip() or None
-        profile.about = (payload.about or "").strip() or None
-        profile.portfolio = (payload.portfolio or "").strip() or None
-        profile.contact = (payload.contact or "").strip() or None
-        profile.status = payload.status or "open_to_join"
-    else:
+    try:
         profile = HackFindProfile(
             user_id=current_user.user_id,
             role=role,
-            hackathon=hackathon,
+            hackathon=hackathon or "",
             skills=skills_val,
             tech_stack=tech_val,
             experience=(payload.experience or "").strip() or None,
             about=(payload.about or "").strip() or None,
             portfolio=(payload.portfolio or "").strip() or None,
-            contact=(payload.contact or "").strip() or None,
-            status=payload.status or "open_to_join",
+            contact=contact,
+            status=normalize_availability_status(payload.status),
             created_at=datetime.utcnow()
         )
         db.add(profile)
+        db.commit()
+        db.refresh(profile)
+        return serialize_person(profile, db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create profile: {str(e)}")
 
-    db.commit()
-    db.refresh(profile)
+@app.put("/hackfind/people/{person_id}", response_model=PersonOut)
+@app.put("/hackfind/people", response_model=PersonOut)
+def update_hackfind_profile(
+    person_id: int | None = None,
+    payload: PersonUpdate = None,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    if person_id is not None:
+        profile = db.query(HackFindProfile).filter(HackFindProfile.id == person_id).first()
+        if not profile:
+            profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == person_id).first()
+    else:
+        profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == current_user.user_id).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if profile.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this profile")
+
+    changes = payload.model_dump(exclude_unset=True) if payload else {}
+
+    if "role" in changes:
+        role = (changes["role"] or "").strip()
+        if not role:
+            raise HTTPException(status_code=400, detail="Primary Role cannot be empty")
+        profile.role = role
+
+    if "skills" in changes:
+        skills_val = format_list(changes["skills"])
+        if not skills_val:
+            raise HTTPException(status_code=400, detail="Key Skills cannot be empty")
+        profile.skills = skills_val
+
+    if "contact" in changes:
+        contact = (changes["contact"] or "").strip()
+        if not contact:
+            raise HTTPException(status_code=400, detail="Contact Info cannot be empty")
+        profile.contact = contact
+
+    if "hackathon" in changes:
+        profile.hackathon = (changes["hackathon"] or "").strip() or ""
+
+    if "tech_stack" in changes or "techStack" in changes:
+        profile.tech_stack = format_list(changes.get("tech_stack") or changes.get("techStack"))
+
+    if "experience" in changes:
+        profile.experience = (changes["experience"] or "").strip() or None
+
+    if "about" in changes:
+        profile.about = (changes["about"] or "").strip() or None
+
+    if "portfolio" in changes:
+        profile.portfolio = (changes["portfolio"] or "").strip() or None
+
+    if "status" in changes and changes["status"] is not None:
+        profile.status = normalize_availability_status(changes["status"])
+
+    try:
+        db.commit()
+        db.refresh(profile)
+        return serialize_person(profile, db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
+
+@app.get("/hackfind/users/me/profile", response_model=PersonOut | None)
+def get_my_hackfind_profile(
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == current_user.user_id).first()
+    if not profile:
+        return None
     return serialize_person(profile, db)
 
 @app.get("/hackfind/users/me/teams", response_model=MyTeamsOut)
@@ -683,9 +813,23 @@ def get_my_hackfind_teams(
     for req in my_requests:
         team = db.query(HackFindTeam).filter(HackFindTeam.id == req.team_id).first()
         if team:
+            req_out = serialize_request(req, db)
+            team_out = serialize_team(team, db)
             pending_list.append(PendingRequestWithTeamOut(
-                request=serialize_request(req, db),
-                team=serialize_team(team, db)
+                request=req_out,
+                team=team_out,
+                id=str(req.id),
+                team_id=str(team.id),
+                teamId=str(team.id),
+                team_name=team.name,
+                teamName=team.name,
+                team_hackathon=team.hackathon,
+                teamHackathon=team.hackathon,
+                role=req.role or "Applicant",
+                status=req.status or "pending",
+                notes=req.notes,
+                created_at=req_out.created_at,
+                createdAt=req_out.createdAt
             ))
 
     return MyTeamsOut(
@@ -865,3 +1009,333 @@ def leave_hackfind_team(
 
     db.delete(member)
     db.commit()
+
+
+# =====================================================================
+# LOST & FOUND CONSTANTS & SERIALIZER HELPERS
+# =====================================================================
+
+VALID_LF_TYPES = {"lost", "found"}
+VALID_LF_CATEGORIES = {"Electronics", "Cards & IDs", "Keys", "Clothing", "Books", "Other"}
+VALID_LF_STATUSES = {"open", "claimed", "resolved"}
+VALID_LF_SORTS = {"newest", "oldest"}
+
+def serialize_lost_found_message(msg: LostFoundMessage, db) -> MessageOut:
+    user = msg.user
+    if not user and msg.user_id:
+        user = db.query(Users).filter(Users.user_id == msg.user_id).first()
+    user_name = user.name if user else f"User {msg.user_id}"
+    user_roll = user.roll_no if user else None
+
+    return MessageOut(
+        id=msg.id,
+        item_id=msg.item_id,
+        user_id=msg.user_id,
+        message=msg.message,
+        created_at=msg.created_at or datetime.utcnow(),
+        user_name=user_name,
+        user_roll_no=user_roll
+    )
+
+def serialize_lost_found_item(item: LostFoundItem, db) -> ItemOut:
+    user = item.user
+    if not user and item.user_id:
+        user = db.query(Users).filter(Users.user_id == item.user_id).first()
+    user_name = user.name if user else f"User {item.user_id}"
+    user_roll = user.roll_no if user else None
+
+    messages_out = [serialize_lost_found_message(m, db) for m in (item.messages or [])]
+
+    return ItemOut(
+        id=item.id,
+        user_id=item.user_id,
+        title=item.title,
+        type=item.type,
+        category=item.category,
+        location=item.location,
+        item_date=item.item_date,
+        description=item.description,
+        contact_info=item.contact_info,
+        image_url=item.image_url,
+        status=item.status or "open",
+        created_at=item.created_at or datetime.utcnow(),
+        user_name=user_name,
+        user_roll_no=user_roll,
+        messages=messages_out
+    )
+
+
+# =====================================================================
+# LOST & FOUND API ENDPOINTS
+# =====================================================================
+
+@app.get("/lost-found/items", response_model=list[ItemOut])
+def list_lost_found_items(
+    type: str | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    search: str | None = None,
+    sort: str = "newest",
+    db=Depends(get_db)
+):
+    query = db.query(LostFoundItem)
+
+    if type and type.strip():
+        query = query.filter(LostFoundItem.type == type.strip().lower())
+
+    if category and category.strip():
+        query = query.filter(LostFoundItem.category == category.strip())
+
+    if status and status.strip():
+        query = query.filter(LostFoundItem.status == status.strip().lower())
+
+    if search and search.strip():
+        q = f"%{search.strip()}%"
+        query = query.filter(or_(
+            LostFoundItem.title.ilike(q),
+            LostFoundItem.description.ilike(q),
+            LostFoundItem.location.ilike(q),
+            LostFoundItem.category.ilike(q)
+        ))
+
+    # 30-day marketplace rule: items remain visible on the main feed for a maximum of 30 days
+    cutoff_date = datetime.utcnow() - timedelta(days=30)
+    query = query.filter(LostFoundItem.created_at >= cutoff_date)
+
+    sort_clean = (sort or "newest").strip().lower()
+    if sort_clean not in VALID_LF_SORTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid sort '{sort}'. Must be one of: {', '.join(sorted(VALID_LF_SORTS))}"
+        )
+
+    if sort_clean == "oldest":
+        query = query.order_by(LostFoundItem.created_at.asc())
+    else:
+        query = query.order_by(LostFoundItem.created_at.desc())
+
+    items = query.all()
+    return [serialize_lost_found_item(item, db) for item in items]
+
+@app.get("/lost-found/items/{item_id}", response_model=ItemOut)
+def get_lost_found_item(item_id: int, db=Depends(get_db)):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return serialize_lost_found_item(item, db)
+
+@app.post("/lost-found/items", response_model=ItemOut)
+def create_lost_found_item(
+    payload: ItemCreate,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+
+    item_type = payload.type.strip().lower()
+    if item_type not in VALID_LF_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid type '{payload.type}'. Must be one of: {', '.join(sorted(VALID_LF_TYPES))}"
+        )
+
+    category = payload.category.strip()
+    if category not in VALID_LF_CATEGORIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid category '{payload.category}'. Must be one of: {', '.join(sorted(VALID_LF_CATEGORIES))}"
+        )
+
+    location = payload.location.strip()
+    if not location:
+        raise HTTPException(status_code=400, detail="Location is required")
+
+    try:
+        item = LostFoundItem(
+            user_id=current_user.user_id,
+            title=title,
+            type=item_type,
+            category=category,
+            location=location,
+            item_date=payload.item_date,
+            description=payload.description.strip() if payload.description else None,
+            contact_info=payload.contact_info.strip() if payload.contact_info else None,
+            image_url=payload.image_url.strip() if payload.image_url else None,
+            status="open",
+            created_at=datetime.utcnow()
+        )
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        return serialize_lost_found_item(item, db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create lost & found item: {str(e)}")
+
+@app.patch("/lost-found/items/{item_id}", response_model=ItemOut)
+def update_lost_found_item(
+    item_id: int,
+    updates: ItemUpdate,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if item.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this listing")
+
+    changes = updates.model_dump(exclude_unset=True)
+
+    if "title" in changes:
+        title = (changes["title"] or "").strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+        item.title = title
+
+    if "type" in changes:
+        item_type = (changes["type"] or "").strip().lower()
+        if item_type not in VALID_LF_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid type '{changes['type']}'. Must be one of: {', '.join(sorted(VALID_LF_TYPES))}"
+            )
+        item.type = item_type
+
+    if "category" in changes:
+        category = (changes["category"] or "").strip()
+        if category not in VALID_LF_CATEGORIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category '{changes['category']}'. Must be one of: {', '.join(sorted(VALID_LF_CATEGORIES))}"
+            )
+        item.category = category
+
+    if "location" in changes:
+        location = (changes["location"] or "").strip()
+        if not location:
+            raise HTTPException(status_code=400, detail="Location cannot be empty")
+        item.location = location
+
+    if "item_date" in changes and changes["item_date"] is not None:
+        item.item_date = changes["item_date"]
+
+    if "description" in changes:
+        item.description = changes["description"].strip() if changes["description"] else None
+
+    if "contact_info" in changes:
+        item.contact_info = changes["contact_info"].strip() if changes["contact_info"] else None
+
+    if "image_url" in changes:
+        item.image_url = changes["image_url"].strip() if changes["image_url"] else None
+
+    try:
+        db.commit()
+        db.refresh(item)
+        return serialize_lost_found_item(item, db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update lost & found item: {str(e)}")
+
+@app.patch("/lost-found/items/{item_id}/status", response_model=ItemOut)
+def update_lost_found_item_status(
+    item_id: int,
+    payload: ItemStatusUpdate,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if item.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to change status for this listing")
+
+    new_status = payload.status.strip().lower()
+    if new_status not in VALID_LF_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status '{payload.status}'. Must be one of: {', '.join(sorted(VALID_LF_STATUSES))}"
+        )
+
+    item.status = new_status
+    try:
+        db.commit()
+        db.refresh(item)
+        return serialize_lost_found_item(item, db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update item status: {str(e)}")
+
+@app.delete("/lost-found/items/{item_id}", status_code=204)
+def delete_lost_found_item(
+    item_id: int,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if item.user_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this listing")
+
+    try:
+        db.delete(item)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete item: {str(e)}")
+
+@app.get("/lost-found/users/me/items", response_model=list[ItemOut])
+def get_my_lost_found_items(
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    items = db.query(LostFoundItem).filter(
+        LostFoundItem.user_id == current_user.user_id
+    ).order_by(LostFoundItem.created_at.desc()).all()
+
+    return [serialize_lost_found_item(item, db) for item in items]
+
+@app.post("/lost-found/items/{item_id}/messages", response_model=MessageOut)
+def create_lost_found_message(
+    item_id: int,
+    payload: MessageCreate,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    content = payload.message.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Message content cannot be empty")
+
+    msg = LostFoundMessage(
+        item_id=item_id,
+        user_id=current_user.user_id,
+        message=content,
+        created_at=datetime.utcnow()
+    )
+    try:
+        db.add(msg)
+        db.commit()
+        db.refresh(msg)
+        return serialize_lost_found_message(msg, db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create message: {str(e)}")
+
+@app.get("/lost-found/items/{item_id}/messages", response_model=list[MessageOut])
+def list_lost_found_messages(item_id: int, db=Depends(get_db)):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    messages = db.query(LostFoundMessage).filter(
+        LostFoundMessage.item_id == item_id
+    ).order_by(LostFoundMessage.created_at.asc()).all()
+
+    return [serialize_lost_found_message(msg, db) for msg in messages]

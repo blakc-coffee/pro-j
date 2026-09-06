@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -68,14 +70,28 @@ export default function UserProfileModal({ userId, visible, onClose }) {
       animationType="fade"
       visible={visible}
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.backdrop}>
+        {/* Scrim backdrop dismiss */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss modal backdrop"
+        />
+
+        {/* Elevated Foreground Dialog Card */}
+        <View style={styles.dialog}>
           <View style={styles.header}>
-            <Text style={styles.title}>Campus Profile</Text>
+            <View style={styles.headerLeft}>
+              <Text style={styles.kicker}>CAMPUS PROFILE</Text>
+              <Text style={styles.title}>User Details</Text>
+            </View>
             <Pressable
               onPress={onClose}
-              hitSlop={8}
+              hitSlop={10}
+              style={styles.closeButton}
               accessibilityRole="button"
               accessibilityLabel="Close profile dialog"
             >
@@ -83,48 +99,54 @@ export default function UserProfileModal({ userId, visible, onClose }) {
             </Pressable>
           </View>
 
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color={colors.primary} size="small" />
-              <Text style={styles.loadingText}>Fetching profile...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : profile ? (
-            <View style={styles.content}>
-              <View style={styles.avatarRow}>
-                <Avatar name={displayName} size={56} style={styles.avatar} />
-                <View style={styles.nameSection}>
-                  <Text style={styles.fullName}>{displayName}</Text>
-                  {rollNo ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{rollNo}</Text>
-                    </View>
-                  ) : null}
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={colors.primary} size="small" />
+                <Text style={styles.loadingText}>Fetching profile...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : profile ? (
+              <View style={styles.content}>
+                <View style={styles.avatarRow}>
+                  <Avatar name={displayName} size={56} style={styles.avatar} />
+                  <View style={styles.nameSection}>
+                    <Text style={styles.fullName}>{displayName}</Text>
+                    {rollNo ? (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{rollNo}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoLabel}>PHONE / CONTACT</Text>
+                  <Text style={styles.infoValue}>{phone || 'Not available'}</Text>
+                </View>
+
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoLabel}>EMAIL ADDRESS</Text>
+                  <Text style={styles.infoValue}>{email || 'Not available'}</Text>
                 </View>
               </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Phone / Contact</Text>
-                <Text style={styles.infoValue}>{phone || 'Not available'}</Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{email || 'Not available'}</Text>
-              </View>
-            </View>
-          ) : null}
+            ) : null}
+          </ScrollView>
 
           <View style={styles.footer}>
             <PrimaryButton label="Close" tone="secondary" onPress={onClose} />
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -139,27 +161,67 @@ const styles = StyleSheet.create({
   },
   dialog: {
     width: '100%',
-    maxWidth: 360,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
+    maxWidth: 380,
+    maxHeight: '85%',
+    backgroundColor: '#ffffff',
+    borderRadius: radius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.35,
+        shadowRadius: 24,
+      },
+      android: {
+        elevation: 16,
+      },
+      web: {
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
+  headerLeft: {
+    flex: 1,
+  },
+  kicker: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
   title: {
     ...typography.subheading,
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.foreground,
   },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+  },
   closeText: {
-    ...typography.subheading,
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.mutedForeground,
-    paddingHorizontal: spacing.xs,
+  },
+  scrollContent: {
+    paddingVertical: spacing.xs,
   },
   loadingContainer: {
     paddingVertical: spacing.xl,
@@ -181,7 +243,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   content: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   avatarRow: {
     flexDirection: 'row',
@@ -198,6 +260,8 @@ const styles = StyleSheet.create({
   },
   fullName: {
     ...typography.heading,
+    fontSize: 17,
+    fontWeight: '700',
     color: colors.foreground,
   },
   badge: {
@@ -219,19 +283,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginBottom: spacing.md,
   },
-  infoRow: {
+  infoCard: {
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    padding: spacing.md,
     marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   infoLabel: {
     ...typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.mutedForeground,
-    marginBottom: 2,
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   infoValue: {
     ...typography.body,
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.foreground,
   },
   footer: {
-    marginTop: spacing.xs,
+    marginTop: spacing.md,
   },
 });

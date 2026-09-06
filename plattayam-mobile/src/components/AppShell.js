@@ -1,10 +1,18 @@
 import { Platform, StyleSheet, View } from 'react-native';
-import { colors } from '../constants/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function AppShell({ children, style }) {
+import { colors } from '../constants/colors';
+import { spacing } from '../constants/spacing';
+
+export default function AppShell({ children, style, safeTop = false }) {
+  const insets = useSafeAreaInsets();
+  const topPadding = safeTop
+    ? Math.max(insets.top, 0) + (Platform.OS === 'web' ? spacing.md : spacing.sm)
+    : 0;
+
   return (
     <View style={styles.outer}>
-      <View style={[styles.inner, style]}>
+      <View style={[styles.inner, topPadding > 0 && { paddingTop: topPadding }, style]}>
         {children}
       </View>
     </View>

@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 
 import AppHeader from '../../../components/AppHeader';
 import AppShell from '../../../components/AppShell';
@@ -26,8 +26,11 @@ import {
 
 export default function MyRidesScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
 
-  const [activeTab, setActiveTab] = useState('posted'); // 'posted' | 'requests'
+  const [activeTab, setActiveTab] = useState(
+    route.params?.initialTab || route.params?.tab || 'posted'
+  ); // 'posted' | 'requests'
   const [postedRides, setPostedRides] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,8 +57,12 @@ export default function MyRidesScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      const targetTab = route.params?.initialTab || route.params?.tab;
+      if (targetTab && (targetTab === 'posted' || targetTab === 'requests')) {
+        setActiveTab(targetTab);
+      }
       loadData();
-    }, [loadData])
+    }, [loadData, route.params?.initialTab, route.params?.tab])
   );
 
   async function handleCancelRequest(cabId) {

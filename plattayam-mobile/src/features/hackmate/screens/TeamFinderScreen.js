@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
-import AppHeader from '../../../components/AppHeader';
 import AppShell from '../../../components/AppShell';
 import FormInput from '../../../components/FormInput';
 import PrimaryButton from '../../../components/PrimaryButton';
@@ -18,10 +17,10 @@ import SegmentedControl from '../components/SegmentedControl';
 import TeamCard from '../components/TeamCard';
 import { colors } from '../../../constants/colors';
 import { spacing } from '../../../constants/spacing';
-import { listPeople, listTeams } from '../services/hackfind';
+import { getMyProfile, listPeople, listTeams } from '../services/hackfind';
 
 const TEAM_FILTERS = ['All', 'Looking for members', 'Full'];
-const PEOPLE_FILTERS = ['All', 'Open to join'];
+const PEOPLE_FILTERS = ['All', 'Open to Work', 'Occupied'];
 
 export default function TeamFinderScreen() {
   const navigation = useNavigation();
@@ -32,6 +31,7 @@ export default function TeamFinderScreen() {
 
   const [teams, setTeams] = useState([]);
   const [people, setPeople] = useState([]);
+  const [myProfile, setMyProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -39,12 +39,21 @@ export default function TeamFinderScreen() {
   const loadData = useCallback(async () => {
     setError('');
     try {
+      const profilePromise = getMyProfile().catch(() => null);
       if (activeTab === 'Teams') {
-        const res = await listTeams({ search, filter: selectedFilter });
-        setTeams(res);
+        const [teamsRes, prof] = await Promise.all([
+          listTeams({ search, filter: selectedFilter }),
+          profilePromise,
+        ]);
+        setTeams(teamsRes);
+        setMyProfile(prof);
       } else {
-        const res = await listPeople({ search, filter: selectedFilter });
-        setPeople(res);
+        const [peopleRes, prof] = await Promise.all([
+          listPeople({ search, filter: selectedFilter }),
+          profilePromise,
+        ]);
+        setPeople(peopleRes);
+        setMyProfile(prof);
       }
     } catch (err) {
       setError(err.message || 'Failed to load HackMate marketplace data.');
@@ -76,16 +85,8 @@ export default function TeamFinderScreen() {
   const isEmpty = !loading && !error && currentList.length === 0;
 
   return (
-    <AppShell>
+    <AppShell safeTop>
       <View style={styles.screen}>
-        {/* Header */}
-        <AppHeader
-          title="HackMate"
-          subtitle="Find teammates, discover teams & build projects"
-          actionLabel="My Profile"
-          onAction={() => navigation.navigate('HackFindHub')}
-        />
-
         <View style={styles.body}>
           {/* Search Input */}
           <FormInput
@@ -161,9 +162,13 @@ export default function TeamFinderScreen() {
             />
           ) : (
             <PrimaryButton
-              label="Post Profile Card"
+              label={myProfile ? 'Edit My Profile' : 'Post My Profile'}
               tone="primary"
-              onPress={() => navigation.navigate('CreateProfileCard')}
+              onPress={() =>
+                navigation.navigate('CreateProfileCard', {
+                  initialProfile: myProfile || undefined,
+                })
+              }
             />
           )}
         </View>

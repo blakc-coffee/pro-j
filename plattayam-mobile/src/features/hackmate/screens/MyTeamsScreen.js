@@ -105,9 +105,11 @@ export default function MyTeamsScreen() {
                     <Text style={styles.statusLead}>TEAM LEADER</Text>
                   </View>
 
-                  <Text style={styles.hackathonTag}>{team.hackathon.toUpperCase()}</Text>
+                  {team.hackathon ? (
+                    <Text style={styles.hackathonTag}>{team.hackathon.toUpperCase()}</Text>
+                  ) : null}
                   <Text style={styles.capacity}>
-                    Capacity: {team.members?.length || 1} / {team.maxMembers} members
+                    Capacity: {team.members?.length || 1} / {team.maxMembers || team.max_members || 4} members
                   </Text>
 
                   <View style={styles.btnRow}>
@@ -150,9 +152,11 @@ export default function MyTeamsScreen() {
                     <Text style={styles.statusMember}>MEMBER</Text>
                   </View>
 
-                  <Text style={styles.hackathonTag}>{team.hackathon.toUpperCase()}</Text>
+                  {team.hackathon ? (
+                    <Text style={styles.hackathonTag}>{team.hackathon.toUpperCase()}</Text>
+                  ) : null}
                   <Text style={styles.capacity}>
-                    Leader: {team.leaderName || 'Team Leader'} · {team.members?.length || 1} / {team.maxMembers} members
+                    Leader: {team.leaderName || team.leader_name || 'Team Leader'} · {team.members?.length || 1} / {team.maxMembers || team.max_members || 4} members
                   </Text>
 
                   <View style={styles.btnRow}>
@@ -185,40 +189,65 @@ export default function MyTeamsScreen() {
             {pending.length > 0 ? (
               <>
                 <Text style={styles.sectionTitle}>Pending Applications</Text>
-                {pending.map((item) => (
-                  <Card key={item.id} padding="lg" style={styles.card}>
-                    <View style={styles.topRow}>
-                      <Text style={styles.teamName}>{item.teamName}</Text>
-                      <Text
-                        style={[
-                          styles.statusBadgeText,
-                          item.status === 'accepted'
-                            ? styles.statusAccepted
-                            : item.status === 'rejected'
-                            ? styles.statusRejected
-                            : styles.statusPending,
-                        ]}
-                      >
-                        {item.status.toUpperCase()}
-                      </Text>
-                    </View>
+                {pending.map((item) => {
+                  const rawStatus = item.status || item.request?.status;
+                  const status = (rawStatus ? String(rawStatus) : 'pending').toLowerCase();
+                  const teamName = item.teamName || item.team?.name || 'Team';
+                  const teamHackathon =
+                    item.teamHackathon ||
+                    item.team?.hackathon ||
+                    item.team_hackathon ||
+                    '';
+                  const roleApplied = item.role || item.request?.role || 'Applicant';
+                  const teamId =
+                    item.teamId ||
+                    item.team?.id ||
+                    item.team_id ||
+                    item.request?.teamId ||
+                    item.request?.team_id;
+                  const itemId = String(
+                    item.id || item.request?.id || `${teamId}-${roleApplied}`
+                  );
 
-                    <Text style={styles.hackathonTag}>{item.teamHackathon?.toUpperCase()}</Text>
-                    <Text style={styles.roleApplied}>Applied as: {item.role}</Text>
+                  return (
+                    <Card key={itemId} padding="lg" style={styles.card}>
+                      <View style={styles.topRow}>
+                        <Text style={styles.teamName}>{teamName}</Text>
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            status === 'accepted'
+                              ? styles.statusAccepted
+                              : status === 'rejected'
+                              ? styles.statusRejected
+                              : styles.statusPending,
+                          ]}
+                        >
+                          {status.toUpperCase()}
+                        </Text>
+                      </View>
 
-                    <View style={styles.btnRow}>
-                      <Pressable
-                        onPress={() =>
-                          navigation.navigate('TeamDetails', { teamId: item.teamId })
-                        }
-                        style={styles.viewBtn}
-                        accessibilityRole="button"
-                      >
-                        <Text style={styles.viewBtnText}>View Team</Text>
-                      </Pressable>
-                    </View>
-                  </Card>
-                ))}
+                      {teamHackathon ? (
+                        <Text style={styles.hackathonTag}>{teamHackathon.toUpperCase()}</Text>
+                      ) : null}
+                      <Text style={styles.roleApplied}>Applied as: {roleApplied}</Text>
+
+                      <View style={styles.btnRow}>
+                        <Pressable
+                          onPress={() => {
+                            if (teamId) {
+                              navigation.navigate('TeamDetails', { teamId });
+                            }
+                          }}
+                          style={styles.viewBtn}
+                          accessibilityRole="button"
+                        >
+                          <Text style={styles.viewBtnText}>View Team</Text>
+                        </Pressable>
+                      </View>
+                    </Card>
+                  );
+                })}
               </>
             ) : null}
           </ScrollView>

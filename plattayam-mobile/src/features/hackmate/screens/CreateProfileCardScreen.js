@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,13 +19,16 @@ import PrimaryButton from '../../../components/PrimaryButton';
 import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
-import { createProfileCard } from '../services/hackfind';
+import { createProfileCard, getMyProfile, updateProfileCard } from '../services/hackfind';
+import { normalizeAvailabilityStatus } from '../components/AvailabilityBadge';
 
 export default function CreateProfileCardScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const initialProfile = route.params?.initialProfile;
-  const isEditing = !!initialProfile;
+
+  const [currentProfile, setCurrentProfile] = useState(initialProfile || null);
+  const isEditing = !!currentProfile;
 
   const [role, setRole] = useState(initialProfile?.role || '');
   const [hackathon, setHackathon] = useState(initialProfile?.hackathon || '');
@@ -34,43 +38,87 @@ export default function CreateProfileCardScreen() {
       : initialProfile?.skills || ''
   );
   const [techStack, setTechStack] = useState(
-    Array.isArray(initialProfile?.techStack)
-      ? initialProfile.techStack.join(', ')
-      : initialProfile?.techStack || ''
+    Array.isArray(initialProfile?.techStack || initialProfile?.tech_stack)
+      ? (initialProfile.techStack || initialProfile.tech_stack).join(', ')
+      : initialProfile?.techStack || initialProfile?.tech_stack || ''
   );
   const [experience, setExperience] = useState(initialProfile?.experience || '');
   const [about, setAbout] = useState(initialProfile?.about || '');
   const [portfolio, setPortfolio] = useState(initialProfile?.portfolio || '');
   const [contact, setContact] = useState(initialProfile?.contact || '');
+  const [status, setStatus] = useState(
+    normalizeAvailabilityStatus(initialProfile?.status) || 'open'
+  );
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // If user opens create screen without initialProfile, verify if they already have one
+  useEffect(() => {
+    let active = true;
+    if (!initialProfile) {
+      getMyProfile()
+        .then((profile) => {
+          if (!active || !profile) return;
+          setCurrentProfile(profile);
+          setRole(profile.role || '');
+          setHackathon(profile.hackathon || '');
+          setSkills(
+            Array.isArray(profile.skills) ? profile.skills.join(', ') : profile.skills || ''
+          );
+          setTechStack(
+            Array.isArray(profile.techStack || profile.tech_stack)
+              ? (profile.techStack || profile.tech_stack).join(', ')
+              : profile.techStack || profile.tech_stack || ''
+          );
+          setExperience(profile.experience || '');
+          setAbout(profile.about || '');
+          setPortfolio(profile.portfolio || '');
+          setContact(profile.contact || '');
+          setStatus(normalizeAvailabilityStatus(profile.status) || 'open');
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+    };
+  }, [initialProfile]);
+
   const handleSubmit = async () => {
     if (!role.trim()) {
-      setError('Preferred role is required (e.g. Frontend Dev, ML Engineer).');
+      setError('Primary Role is required.');
       return;
     }
     if (!skills.trim()) {
-      setError('Please list at least one skill.');
+      setError('Key Skills is required.');
+      return;
+    }
+    if (!contact.trim()) {
+      setError('Contact Info is required.');
       return;
     }
 
     setError('');
     setLoading(true);
 
+    const payload = {
+      role: role.trim(),
+      hackathon: hackathon.trim() || undefined,
+      skills: skills.trim(),
+      tech_stack: techStack.trim() || undefined,
+      experience: experience.trim() || undefined,
+      about: about.trim() || undefined,
+      portfolio: portfolio.trim() || undefined,
+      contact: contact.trim(),
+      status: status === 'occupied' ? 'occupied' : 'open',
+    };
+
     try {
-      await createProfileCard({
-        role: role.trim(),
-        hackathon: hackathon.trim() || undefined,
-        skills: skills.trim(),
-        tech_stack: techStack.trim() || undefined,
-        experience: experience.trim() || undefined,
-        about: about.trim() || undefined,
-        portfolio: portfolio.trim() || undefined,
-        contact: contact.trim() || undefined,
-        status: 'open_to_join',
-      });
+      if (isEditing) {
+        await updateProfileCard(currentProfile.id || currentProfile.userId, payload);
+      } else {
+        await createProfileCard(payload);
+      }
 
       Alert.alert(
         isEditing ? 'Profile Updated' : 'Profile Published',
@@ -85,7 +133,7 @@ export default function CreateProfileCardScreen() {
         ]
       );
     } catch (err) {
-      setError(err.message || 'Failed to publish profile card.');
+      setError(err.message || (isEditing ? 'Failed to update profile card.' : 'Failed to publish profile card.'));
     } finally {
       setLoading(false);
     }
@@ -148,6 +196,64 @@ export default function CreateProfileCardScreen() {
                 onChangeText={setExperience}
               />
 
+              {/* Availability Status Selector */}
+              <View style={styles.statusFieldGroup}>
+                <Text style={styles.fieldLabel}>Availability Status</Text>
+                <View style={styles.statusSelectorRow}>
+                  <Pressable
+                    onPress={() => setStatus('open')}
+                    style={[
+                      styles.statusOption,
+                      status === 'open'
+                        ? styles.statusOptionOpenActive
+                        : styles.statusOptionInactive,
+                    ]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: status === 'open' }}
+                  >
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        status === 'open'
+                          ? styles.statusOptionTextOpenActive
+                          : styles.statusOptionTextInactive,
+                      ]}
+                    >
+                      Open to Work
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setStatus('occupied')}
+                    style={[
+                      styles.statusOption,
+                      status === 'occupied'
+                        ? styles.statusOptionOccupiedActive
+                        : styles.statusOptionInactive,
+                    ]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: status === 'occupied' }}
+                  >
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        status === 'occupied'
+                          ? styles.statusOptionTextOccupiedActive
+                          : styles.statusOptionTextInactive,
+                      ]}
+                    >
+                      Occupied
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <Text style={styles.statusHint}>
+                  {status === 'open'
+                    ? '• Available to join a hackathon or team'
+                    : '• Currently committed to a team or project'}
+                </Text>
+              </View>
+
               <Text style={styles.sectionHeader}>ABOUT & CONTACT</Text>
 
               <FormInput
@@ -168,7 +274,7 @@ export default function CreateProfileCardScreen() {
               />
 
               <FormInput
-                label="Contact Info"
+                label="Contact Info *"
                 placeholder="Phone number, email, or @handle"
                 value={contact}
                 onChangeText={setContact}
@@ -231,5 +337,60 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.destructive,
     textAlign: 'center',
+  },
+  statusFieldGroup: {
+    marginBottom: spacing.md,
+  },
+  fieldLabel: {
+    ...typography.caption,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.foreground,
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  statusSelectorRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  statusOption: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusOptionOpenActive: {
+    backgroundColor: colors.successSoft,
+  },
+  statusOptionOccupiedActive: {
+    backgroundColor: colors.warningSoft,
+  },
+  statusOptionInactive: {
+    backgroundColor: '#f7f5f2',
+    borderWidth: 1,
+    borderColor: '#e8e3dc',
+  },
+  statusOptionText: {
+    ...typography.caption,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  statusOptionTextOpenActive: {
+    color: colors.success,
+  },
+  statusOptionTextOccupiedActive: {
+    color: colors.warning,
+  },
+  statusOptionTextInactive: {
+    color: colors.mutedForeground,
+  },
+  statusHint: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.mutedForeground,
+    marginTop: 6,
   },
 });

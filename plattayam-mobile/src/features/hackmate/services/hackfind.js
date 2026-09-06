@@ -43,9 +43,21 @@ export function getPerson(personId) {
   return apiRequest(`/hackfind/people/${personId}`);
 }
 
+export function getMyProfile() {
+  return apiRequest('/hackfind/users/me/profile');
+}
+
 export function createProfileCard(profileData) {
   return apiRequest('/hackfind/people', {
     method: 'POST',
+    body: JSON.stringify(profileData),
+  });
+}
+
+export function updateProfileCard(personId, profileData) {
+  const path = personId ? `/hackfind/people/${personId}` : '/hackfind/people';
+  return apiRequest(path, {
+    method: 'PUT',
     body: JSON.stringify(profileData),
   });
 }
