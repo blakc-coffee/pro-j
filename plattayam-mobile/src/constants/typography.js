@@ -1,31 +1,50 @@
+import { Platform } from 'react-native';
+
+const fontFamily = Platform.OS === 'web'
+  ? 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  : undefined;
+
 export const typography = {
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontFamily,
+    fontSize: 34,
+    fontWeight: '500',
+    lineHeight: 40,
   },
   subtitle: {
-    fontSize: 15,
+    fontFamily,
+    fontSize: 16,
     fontWeight: '400',
+    lineHeight: 24,
   },
   heading: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily,
+    fontSize: 26,
+    fontWeight: '500',
+    lineHeight: 32,
+  },
+  subheading: {
+    fontFamily,
+    fontSize: 20,
+    fontWeight: '500',
+    lineHeight: 26,
   },
   body: {
-    fontSize: 15,
+    fontFamily,
+    fontSize: 16,
     fontWeight: '400',
+    lineHeight: 24,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontFamily,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
   },
   caption: {
+    fontFamily,
     fontSize: 12,
     fontWeight: '500',
+    lineHeight: 16,
   },
 };
-
-typography.heading = typography.heading;
-typography.body = typography.body;
-typography.caption = typography.caption;
-typography.label = typography.label;

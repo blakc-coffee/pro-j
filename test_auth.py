@@ -55,16 +55,20 @@ def test_jwt():
             
     # 5. verify expired token rejection
     import security
-    security.ACCESS_TOKEN_EXPIRE_MINUTES = 0 # force expiration
-    expired_token = security.create_access_token({"sub": "1"})
-    sleep(1) # Ensure time passes slightly
+    orig_expire = security.ACCESS_TOKEN_EXPIRE_MINUTES
     try:
-        expired_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=expired_token)
-        security.get_current_user(credentials=expired_creds, db=db)
-        print("Expired token rejection: FAILED")
-    except HTTPException as e:
-        if e.status_code == 401 and e.detail == "Token has expired":
-            print("Expired token rejection: SUCCESS")
+        security.ACCESS_TOKEN_EXPIRE_MINUTES = 0 # force expiration
+        expired_token = security.create_access_token({"sub": "1"})
+        sleep(1) # Ensure time passes slightly
+        try:
+            expired_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=expired_token)
+            security.get_current_user(credentials=expired_creds, db=db)
+            print("Expired token rejection: FAILED")
+        except HTTPException as e:
+            if e.status_code == 401 and e.detail == "Token has expired":
+                print("Expired token rejection: SUCCESS")
+    finally:
+        security.ACCESS_TOKEN_EXPIRE_MINUTES = orig_expire
 
 if __name__ == "__main__":
     test_jwt()

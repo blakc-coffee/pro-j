@@ -9,20 +9,28 @@ export default function AppHeader({
   title,
   subtitle,
   onBack,
+  onBackPress,
   actionLabel,
   onAction,
 }) {
   const insets = useSafeAreaInsets();
+  const handleBack = onBack || onBackPress;
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.row}>
-        {onBack ? (
-          <Pressable onPress={onBack} style={styles.sideButton} hitSlop={8}>
-            <Text style={styles.sideText}>Back</Text>
+        {handleBack ? (
+          <Pressable
+            onPress={handleBack}
+            style={styles.backButton}
+            hitSlop={8}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Text style={styles.sideText}>← Back</Text>
           </Pressable>
         ) : (
-          <View style={styles.sideButton} />
+          <View style={styles.sidePlaceholder} />
         )}
 
         <View style={styles.titles}>
@@ -31,11 +39,16 @@ export default function AppHeader({
         </View>
 
         {onAction ? (
-          <Pressable onPress={onAction} style={styles.sideButton} hitSlop={8}>
+          <Pressable
+            onPress={onAction}
+            style={styles.actionButton}
+            hitSlop={8}
+            accessibilityRole="button"
+          >
             <Text style={styles.actionText}>{actionLabel}</Text>
           </Pressable>
         ) : (
-          <View style={styles.sideButton} />
+          <View style={styles.sidePlaceholder} />
         )}
       </View>
     </View>
@@ -44,39 +57,58 @@ export default function AppHeader({
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.card, // Clean white header surface #ffffff
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border, // Hairline border #eee9e2
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
   row: {
     flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+  },
+  backButton: {
+    minWidth: 64,
+    minHeight: 44,
+    justifyContent: 'center',
     alignItems: 'flex-start',
   },
-  sideButton: {
-    minWidth: 56,
+  actionButton: {
+    minWidth: 64,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  sidePlaceholder: {
+    minWidth: 64,
+    minHeight: 44,
   },
   sideText: {
     color: colors.primary,
-    fontWeight: '600',
+    ...typography.label,
+    fontWeight: '500',
   },
   actionText: {
     color: colors.accent,
-    fontWeight: '700',
+    ...typography.label,
     textAlign: 'right',
+    fontWeight: '500',
   },
   titles: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    ...typography.title,
+    ...typography.heading,
     color: colors.foreground,
     textAlign: 'center',
   },
   subtitle: {
-    ...typography.subtitle,
+    ...typography.caption,
     color: colors.mutedForeground,
     textAlign: 'center',
-    marginTop: spacing.xs,
+    marginTop: 2,
   },
 });

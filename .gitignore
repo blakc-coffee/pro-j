@@ -1,7 +1,19 @@
+# Environment
 .env
+.env.*
+*.env
+
+# Virtual Environment & Packages
 venv/
 node_modules/
 __pycache__/
+
+# Local Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Frameworks & Tooling
 .expo/
 .claude/
 AGENTS.md
