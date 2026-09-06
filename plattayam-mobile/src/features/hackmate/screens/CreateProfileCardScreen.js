@@ -121,21 +121,29 @@ export default function CreateProfileCardScreen() {
         await createProfileCard(payload);
       }
 
-      Alert.alert(
-        isEditing ? 'Profile Updated' : 'Profile Published',
-        isEditing
-          ? 'Your candidate profile card has been updated successfully.'
-          : 'Your candidate profile card is now live on the HackMate marketplace!',
-        [
-          {
-            text: 'Great',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      if (Platform.OS === 'web') {
+        window.alert(
+          isEditing
+            ? 'Your candidate profile card has been updated successfully.'
+            : 'Your candidate profile card is now live on the HackMate marketplace!'
+        );
+        navigation.goBack();
+      } else {
+        Alert.alert(
+          isEditing ? 'Profile Updated' : 'Profile Published',
+          isEditing
+            ? 'Your candidate profile card has been updated successfully.'
+            : 'Your candidate profile card is now live on the HackMate marketplace!',
+          [
+            {
+              text: 'Great',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+      }
     } catch (err) {
       setError(err.message || (isEditing ? 'Failed to update profile card.' : 'Failed to publish profile card.'));
-    } finally {
       setLoading(false);
     }
   };
