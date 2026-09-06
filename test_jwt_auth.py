@@ -24,8 +24,13 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def apply_db_override():
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+
 
 def setup_db():
     db = TestingSessionLocal()
@@ -54,11 +59,13 @@ def test_invalid_jwt():
 def test_expired_jwt():
     import security
     original_expire = security.ACCESS_TOKEN_EXPIRE_MINUTES
-    security.ACCESS_TOKEN_EXPIRE_MINUTES = -1
-    expired_token = security.create_access_token({"sub": "1"})
-    res = client.get("/users/me/cab-queries", headers={"Authorization": f"Bearer {expired_token}"})
-    assert res.status_code == 401
-    security.ACCESS_TOKEN_EXPIRE_MINUTES = original_expire
+    try:
+        security.ACCESS_TOKEN_EXPIRE_MINUTES = -1
+        expired_token = security.create_access_token({"sub": "1"})
+        res = client.get("/users/me/cab-queries", headers={"Authorization": f"Bearer {expired_token}"})
+        assert res.status_code == 401
+    finally:
+        security.ACCESS_TOKEN_EXPIRE_MINUTES = original_expire
 
 def test_create_ride_ownership():
     payload = {

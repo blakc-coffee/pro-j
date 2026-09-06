@@ -63,6 +63,7 @@ class CabRequests(Base):
     created_at = Column(DateTime, nullable=False)
 
     ride = relationship("CabQuery", foreign_keys=[cab_id], lazy="joined")
+    req_user = relationship("Users", foreign_keys=[req_user_id], lazy="joined")
 
     @property
     def from_loc(self):
@@ -98,7 +99,27 @@ class CabRequests(Base):
 
     @property
     def user_name(self):
-        return self.ride.user_name if self.ride else None
+        return self.req_user.name if self.req_user else None
+
+    @property
+    def name(self):
+        return self.req_user.name if self.req_user else None
+
+    @property
+    def roll_no(self):
+        return self.req_user.roll_no if self.req_user else None
+
+    @property
+    def user_id(self):
+        return self.req_user_id
+
+    @property
+    def request_id(self):
+        return self.req_id
+
+    @property
+    def id(self):
+        return self.req_id
 
 
 # =====================================================================
@@ -298,6 +319,11 @@ class CabRequestOut(BaseModel):
     seats_avbl: int | None = None
     creator_name: str | None = None
     user_name: str | None = None
+    name: str | None = None
+    roll_no: str | None = None
+    user_id: int | None = None
+    request_id: int | None = None
+    id: int | None = None
     model_config = {"from_attributes": True}
 
 class CabRequestUpdate(BaseModel):
@@ -400,8 +426,17 @@ class JoinRequestCreate(BaseModel):
     role: str | None = "Team Member"
     skills: list[str] | str | None = None
 
+class TeamInviteCreate(BaseModel):
+    user_id: int | str | None = None
+    userId: int | str | None = None
+    candidate_id: int | str | None = None
+    candidateId: int | str | None = None
+    role: str | None = "Member"
+    notes: str | None = None
+
 class JoinRequestRespond(BaseModel):
-    action: str  # 'accepted' | 'rejected'
+    action: str | None = None
+    status: str | None = None
 
 class JoinRequestOut(BaseModel):
     id: str

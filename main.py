@@ -15,7 +15,7 @@ from model import (
     HackFindTeam, HackFindTeamMember, HackFindTeamRequest, HackFindProfile,
     TeamCreate, TeamOut, TeamMemberOut,
     PersonCreate, PersonUpdate, PersonOut,
-    JoinRequestCreate, JoinRequestRespond, JoinRequestOut,
+    JoinRequestCreate, TeamInviteCreate, JoinRequestRespond, JoinRequestOut,
     PendingRequestWithTeamOut, MyTeamsOut,
     LostFoundItem, LostFoundMessage, ItemCreate, ItemUpdate, ItemStatusUpdate, ItemOut,
     MessageCreate, MessageOut
@@ -24,32 +24,40 @@ from database import get_db
 from security import create_access_token, get_current_user
 
 app = FastAPI()
+
+# Configure allowed origins for CORS
+# Supports local development (Expo Web :8081/:19006, Vite/React :3000, FastAPI :8000),
+# environment-specified origins, and Vercel preview/production frontend deployments.
+default_origins = [
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:19006",
+    "http://127.0.0.1:19006",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+env_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+frontend_url = os.getenv("FRONTEND_URL", "")
+extra_origins = [o.strip() for o in (env_origins_str.split(",") + [frontend_url]) if o.strip()]
+allowed_origins = list(dict.fromkeys(default_origins + extra_origins))
+
+# Regex pattern for Vercel preview and production domains (e.g. https://<project>*.vercel.app)
+vercel_regex = os.getenv("CORS_ORIGIN_REGEX", r"^https:\/\/.*\.vercel\.app$")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=vercel_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-cabride = [
-    {"loc": "madurai", "id": 1, "date": "01/01/2001"},
-    {"loc": "TVM", "id": 2, "date": "07/07/2007"},
-    {"loc": "kottayam", "id": 3, "date": "02/02/2002"}
-]
-
 @app.get("/")
 def root():
     return {"status": "ok", "service": "Plattayam Backend API"}
-
-@app.post("/login", status_code=200)
-def login(creds: UserLogin, db=Depends(get_db)):
-    email_id = creds.email_id
-    password = creds.password
-    if email_id == "user@iiitkottayam.ac.in" and password == "qwert12345":
-        return "Succesfull login"
-    else:
-        raise HTTPException(status_code=401, detail="invalid user details")
 
 @app.post("/auth/google", response_model=AuthResponse)
 def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
@@ -897,6 +905,113 @@ def request_to_join_team(
     db.refresh(new_req)
     return serialize_request(new_req, db)
 
+@app.post("/hackfind/teams/{team_id}/invites", response_model=JoinRequestOut)
+def invite_candidate_to_team(
+    team_id: int,
+    payload: TeamInviteCreate,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    team = db.query(HackFindTeam).filter(HackFindTeam.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    # Only leader or existing team members can invite candidates
+    is_leader = team.leader_id == current_user.user_id
+    is_member = db.query(HackFindTeamMember).filter(
+        HackFindTeamMember.team_id == team_id,
+        HackFindTeamMember.user_id == current_user.user_id
+    ).first() is not None
+
+    if not is_leader and not is_member:
+        raise HTTPException(status_code=403, detail="Only team leaders or members can invite candidates to this team")
+
+    # Check capacity
+    member_count = db.query(HackFindTeamMember).filter(HackFindTeamMember.team_id == team_id).count()
+    if member_count >= team.max_members:
+        raise HTTPException(status_code=409, detail="Team is already full")
+
+    raw_target_id = payload.user_id or payload.userId or payload.candidate_id or payload.candidateId
+    if not raw_target_id:
+        raise HTTPException(status_code=400, detail="Candidate user ID is required")
+
+    try:
+        target_id_int = int(raw_target_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid candidate user ID")
+
+    # Resolve candidate user & profile
+    target_user = db.query(Users).filter(Users.user_id == target_id_int).first()
+    candidate_profile = None
+    if not target_user:
+        # Check if raw_target_id is a HackFindProfile.id
+        candidate_profile = db.query(HackFindProfile).filter(HackFindProfile.id == target_id_int).first()
+        if candidate_profile:
+            target_user = db.query(Users).filter(Users.user_id == candidate_profile.user_id).first()
+    else:
+        candidate_profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == target_user.user_id).first()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    target_user_id = target_user.user_id
+
+    if target_user_id == current_user.user_id or target_user_id == team.leader_id:
+        raise HTTPException(status_code=400, detail="Cannot invite yourself or the team leader")
+
+    # Check if candidate is already in the team
+    already_member = db.query(HackFindTeamMember).filter(
+        HackFindTeamMember.team_id == team_id,
+        HackFindTeamMember.user_id == target_user_id
+    ).first()
+    if already_member:
+        raise HTTPException(status_code=409, detail="Candidate is already a member of this team")
+
+    # CRITICAL REQUIREMENT: Backend Safety Check - reject if candidate is Occupied
+    if candidate_profile:
+        current_status = normalize_availability_status(candidate_profile.status)
+        if current_status == "occupied":
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot invite a candidate who is currently Occupied / not open to work"
+            )
+
+    # Check existing request
+    existing_req = db.query(HackFindTeamRequest).filter(
+        HackFindTeamRequest.team_id == team_id,
+        HackFindTeamRequest.user_id == target_user_id
+    ).first()
+
+    skills_val = format_list(candidate_profile.skills if candidate_profile else None)
+    role_val = (payload.role or (candidate_profile.role if candidate_profile else "Team Member")).strip()
+    notes_val = (payload.notes or f"Invited by {current_user.name}").strip()
+
+    if existing_req:
+        if existing_req.status == "pending":
+            raise HTTPException(status_code=409, detail="An invitation or request is already pending for this candidate")
+        existing_req.status = "pending"
+        existing_req.notes = notes_val
+        existing_req.skills = skills_val
+        existing_req.role = role_val
+        existing_req.created_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing_req)
+        return serialize_request(existing_req, db)
+
+    new_req = HackFindTeamRequest(
+        team_id=team_id,
+        user_id=target_user_id,
+        role=role_val,
+        skills=skills_val,
+        notes=notes_val,
+        status="pending",
+        created_at=datetime.utcnow()
+    )
+    db.add(new_req)
+    db.commit()
+    db.refresh(new_req)
+    return serialize_request(new_req, db)
+
 @app.get("/hackfind/teams/{team_id}/requests", response_model=list[JoinRequestOut])
 def list_team_join_requests(
     team_id: int,
@@ -936,9 +1051,16 @@ def respond_to_join_request(
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    action = payload.action.lower()
+    raw_action = payload.action or payload.status
+    if not raw_action:
+        raise HTTPException(status_code=400, detail="Action is required ('accepted' or 'rejected')")
+
+    action = raw_action.strip().lower()
     if action not in ["accepted", "rejected"]:
         raise HTTPException(status_code=400, detail="Action must be 'accepted' or 'rejected'")
+
+    if action == "accepted" and req.status == "accepted":
+        raise HTTPException(status_code=400, detail="This request has already been accepted")
 
     if action == "accepted":
         member_count = db.query(HackFindTeamMember).filter(HackFindTeamMember.team_id == team_id).count()

@@ -23,6 +23,7 @@ import {
   listMyRequests,
   listMyRides,
 } from '../services/rides';
+import { requestStatusKey } from '../../../utils/format';
 
 export default function MyRidesScreen() {
   const navigation = useNavigation();
@@ -65,7 +66,8 @@ export default function MyRidesScreen() {
     }, [loadData, route.params?.initialTab, route.params?.tab])
   );
 
-  async function handleCancelRequest(cabId) {
+  async function handleCancelRequest(requestId) {
+    if (!requestId) return;
     Alert.alert(
       'Cancel Request',
       'Are you sure you want to cancel this ride request?',
@@ -75,9 +77,9 @@ export default function MyRidesScreen() {
           text: 'Yes, Cancel',
           style: 'destructive',
           onPress: async () => {
-            setCancellingId(cabId);
+            setCancellingId(requestId);
             try {
-              await deleteRideRequest(cabId);
+              await deleteRideRequest(requestId);
               loadData();
             } catch (err) {
               Alert.alert('Error', err.message || 'Could not cancel request.');
@@ -159,24 +161,30 @@ export default function MyRidesScreen() {
             <FlatList
               data={requests}
               keyExtractor={(item) =>
-                item.request_id || item.cab_id || String(Math.random())
+                String(item.req_id || item.request_id || item.id || item.cab_id || Math.random())
               }
-              renderItem={({ item }) => (
-                <View style={styles.requestItem}>
-                  <RideCard ride={item} />
-                  <View style={styles.requestStatusRow}>
-                    <StatusBadge status={item.status} />
-                    {item.status === 'pending' || item.status === 'accepted' ? (
-                      <PrimaryButton
-                        label="Cancel Request"
-                        tone="outline"
-                        loading={cancellingId === item.cab_id}
-                        onPress={() => handleCancelRequest(item.cab_id)}
-                      />
-                    ) : null}
+              renderItem={({ item }) => {
+                const requestId = item.req_id ?? item.request_id ?? item.id;
+                const statusKey = requestStatusKey(item.status);
+                const canCancel = statusKey === 'pending' || statusKey === 'accepted';
+                return (
+                  <View style={styles.requestItem}>
+                    <RideCard ride={item} />
+                    <View style={styles.requestStatusRow}>
+                      <StatusBadge status={item.status} />
+                      {canCancel && requestId ? (
+                        <PrimaryButton
+                          label="Cancel Request"
+                          tone="outline"
+                          loading={cancellingId === requestId}
+                          loadingLabel="Cancelling..."
+                          onPress={() => handleCancelRequest(requestId)}
+                        />
+                      ) : null}
+                    </View>
                   </View>
-                </View>
-              )}
+                );
+              }}
               contentContainerStyle={styles.list}
             />
           )}

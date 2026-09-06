@@ -271,6 +271,7 @@ export default function ReportItemScreen() {
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
     if (!validate()) {
       return;
     }
@@ -646,16 +647,10 @@ export default function ReportItemScreen() {
           {/* Submit Action */}
           <View style={styles.submitContainer}>
             <PrimaryButton
-              label={
-                submitting
-                  ? isEditing
-                    ? 'Saving Changes...'
-                    : 'Publishing...'
-                  : isEditing
-                  ? 'Save Changes'
-                  : 'Publish Item Report'
-              }
+              label={isEditing ? 'Save Changes' : 'Publish Item Report'}
               tone="primary"
+              loading={submitting}
+              loadingLabel={isEditing ? 'Saving...' : 'Submitting...'}
               disabled={submitting || initialLoading}
               onPress={handleSubmit}
             />

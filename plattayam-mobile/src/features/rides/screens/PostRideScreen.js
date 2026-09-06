@@ -170,6 +170,7 @@ export default function PostRideScreen() {
   }
 
   async function handleSubmit() {
+    if (loading) return;
     if (!validate()) {
       return;
     }
@@ -353,9 +354,10 @@ export default function PostRideScreen() {
 
               <View style={styles.submitContainer}>
                 <PrimaryButton
-                  label="Publish Ride"
+                  label="Post Ride"
                   tone="primary"
                   loading={loading}
+                  loadingLabel="Posting..."
                   onPress={handleSubmit}
                 />
               </View>

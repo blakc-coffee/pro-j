@@ -25,6 +25,7 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
 
   async function onSubmit() {
+    if (loading) return;
     if (!rollNo.trim() || !password) {
       setError('Roll number and password are required.');
       return;
@@ -72,7 +73,12 @@ export default function LoginScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <PrimaryButton label="Sign In" loading={loading} onPress={onSubmit} />
+            <PrimaryButton
+              label="Sign In"
+              loading={loading}
+              loadingLabel="Signing In..."
+              onPress={onSubmit}
+            />
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>

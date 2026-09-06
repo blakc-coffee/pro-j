@@ -82,10 +82,15 @@ export function listTeamRequests(teamId) {
 }
 
 export function respondToTeamRequest(teamId, reqId, status) {
-  return apiRequest(`/hackfind/teams/${teamId}/requests/${reqId}/respond`, {
+  const actualTeamId = typeof teamId === 'object' && teamId !== null ? (teamId.id || teamId.team_id || teamId.teamId) : teamId;
+  const actualReqId = typeof reqId === 'object' && reqId !== null ? (reqId.id || reqId.req_id || reqId.requestId) : reqId;
+  const normalizedAction = String(status || 'accepted').toLowerCase();
+
+  return apiRequest(`/hackfind/teams/${actualTeamId}/requests/${actualReqId}/respond`, {
     method: 'POST',
     body: JSON.stringify({
-      status, // 'accepted' | 'rejected'
+      action: normalizedAction,
+      status: normalizedAction,
     }),
   });
 }
@@ -99,5 +104,16 @@ export function removeTeamMember(teamId, memberId) {
 export function leaveTeam(teamId) {
   return apiRequest(`/hackfind/teams/${teamId}/leave`, {
     method: 'POST',
+  });
+}
+
+export function inviteCandidateToTeam(teamId, payload) {
+  return apiRequest(`/hackfind/teams/${teamId}/invites`, {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: payload.userId || payload.user_id,
+      role: payload.role,
+      notes: payload.notes,
+    }),
   });
 }

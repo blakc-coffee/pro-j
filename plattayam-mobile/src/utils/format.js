@@ -36,7 +36,23 @@ export function isFullRide(ride) {
   if (!ride) {
     return false;
   }
-  return ride.status === 'full' || Number(ride.seats_avbl) <= 0;
+  return String(ride.status || '').toLowerCase() === 'full' || Number(ride.seats_avbl ?? 0) <= 0;
+}
+
+export function sortRidesAvailableFirst(ridesList) {
+  if (!Array.isArray(ridesList)) {
+    return [];
+  }
+  const available = [];
+  const full = [];
+  for (const ride of ridesList) {
+    if (isFullRide(ride)) {
+      full.push(ride);
+    } else {
+      available.push(ride);
+    }
+  }
+  return [...available, ...full];
 }
 
 export function rideStatusKey(ride) {
@@ -59,17 +75,46 @@ export function requestStatusKey(status) {
 
 export function formatFullName(rawName) {
   if (!rawName) return null;
-  let cleanName = rawName.trim();
+  let cleanName = String(rawName).trim();
   const rollMatch = cleanName.match(/^([0-9a-zA-Z]{10,12})\s+(.+)$/i);
   if (rollMatch) {
     cleanName = rollMatch[2];
   }
 
-  return cleanName.split(/\s+/).map(word => {
+  return cleanName.split(/\s+/).filter(Boolean).map(word => {
     if (word.length === 1) return word.toUpperCase();
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   }).join(' ');
 }
+
+export function formatCompactName(rawName) {
+  if (!rawName) return null;
+  let cleanName = String(rawName).trim();
+  const rollMatch = cleanName.match(/^([0-9a-zA-Z]{10,12})\s+(.+)$/i);
+  if (rollMatch) {
+    cleanName = rollMatch[2].trim();
+  }
+
+  const parts = cleanName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(word => {
+      if (word.length === 1) return word.toUpperCase();
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    });
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  if (parts.length <= 2) {
+    return parts.join(' ');
+  }
+
+  return parts.slice(-2).join(' ');
+}
+
+export const formatDisplayName = formatCompactName;
 
 export function getFirstName(formattedName) {
   if (!formattedName) return null;

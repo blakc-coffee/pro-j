@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
-import { formatDate, formatFullName, formatTime, isFullRide } from '../../../utils/format';
+import { formatDate, formatCompactName, formatTime, isFullRide } from '../../../utils/format';
 
 export default function RideCard({ ride, footer }) {
   const navigation = useNavigation();
@@ -18,7 +18,7 @@ export default function RideCard({ ride, footer }) {
   const depTime = ride.dep_time || ride.time;
   const seats = Number(ride.seats_avbl ?? 0);
   const rawCreatorName = ride.creator_name || ride.user_name || ride.name;
-  const creatorName = formatFullName(rawCreatorName) || rawCreatorName;
+  const creatorName = formatCompactName(rawCreatorName) || rawCreatorName;
 
   return (
     <Pressable

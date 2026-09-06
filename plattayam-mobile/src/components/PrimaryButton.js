@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
 import { radius, spacing } from '../constants/spacing';
@@ -6,6 +6,7 @@ import { typography } from '../constants/typography';
 
 export default function PrimaryButton({
   label,
+  loadingLabel,
   onPress,
   disabled,
   loading,
@@ -47,7 +48,18 @@ export default function PrimaryButton({
       accessibilityState={{ disabled: !!(disabled || loading) }}
     >
       {loading ? (
-        <ActivityIndicator color={textColor} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator
+            size="small"
+            color={textColor}
+            style={loadingLabel ? styles.spinner : undefined}
+          />
+          {loadingLabel ? (
+            <Text style={[styles.label, { color: textColor }, textStyle]}>
+              {loadingLabel}
+            </Text>
+          ) : null}
+        </View>
       ) : (
         <Text style={[styles.label, { color: textColor }, textStyle]}>
           {label}
@@ -81,5 +93,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spinner: {
+    marginRight: spacing.xs,
   },
 });

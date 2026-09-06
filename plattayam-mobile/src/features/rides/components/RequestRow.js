@@ -6,7 +6,7 @@ import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import {
-  formatFullName,
+  formatCompactName,
   requestStatusKey,
   requestStatusLabel,
 } from '../../../utils/format';
@@ -22,7 +22,7 @@ export default function RequestRow({
   const isPending = requestStatusKey(request.status) === 'pending';
   const seats = Number(request.seats_requested ?? 1);
   const rawName = request.user_name || request.name || request.roll_no || 'Rider';
-  const requesterName = formatFullName(rawName) || rawName;
+  const requesterName = formatCompactName(rawName) || rawName;
 
   return (
     <View style={styles.container}>

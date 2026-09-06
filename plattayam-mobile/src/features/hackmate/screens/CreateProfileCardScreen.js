@@ -85,6 +85,7 @@ export default function CreateProfileCardScreen() {
   }, [initialProfile]);
 
   const handleSubmit = async () => {
+    if (loading) return;
     if (!role.trim()) {
       setError('Primary Role is required.');
       return;
@@ -199,15 +200,10 @@ export default function CreateProfileCardScreen() {
               {/* Availability Status Selector */}
               <View style={styles.statusFieldGroup}>
                 <Text style={styles.fieldLabel}>Availability Status</Text>
-                <View style={styles.statusSelectorRow}>
+                <View style={styles.statusOptionsList}>
                   <Pressable
                     onPress={() => setStatus('open')}
-                    style={[
-                      styles.statusOption,
-                      status === 'open'
-                        ? styles.statusOptionOpenActive
-                        : styles.statusOptionInactive,
-                    ]}
+                    style={styles.statusOptionRow}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: status === 'open' }}
                   >
@@ -221,16 +217,14 @@ export default function CreateProfileCardScreen() {
                     >
                       Open to Work
                     </Text>
+                    {status === 'open' ? (
+                      <Text style={styles.checkIconOpen}>✓</Text>
+                    ) : null}
                   </Pressable>
 
                   <Pressable
                     onPress={() => setStatus('occupied')}
-                    style={[
-                      styles.statusOption,
-                      status === 'occupied'
-                        ? styles.statusOptionOccupiedActive
-                        : styles.statusOptionInactive,
-                    ]}
+                    style={styles.statusOptionRow}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: status === 'occupied' }}
                   >
@@ -244,6 +238,9 @@ export default function CreateProfileCardScreen() {
                     >
                       Occupied
                     </Text>
+                    {status === 'occupied' ? (
+                      <Text style={styles.checkIconOccupied}>✓</Text>
+                    ) : null}
                   </Pressable>
                 </View>
 
@@ -285,6 +282,7 @@ export default function CreateProfileCardScreen() {
                   label={isEditing ? 'Save Changes' : 'Publish Profile Card'}
                   tone="primary"
                   loading={loading}
+                  loadingLabel={isEditing ? 'Saving...' : 'Publishing...'}
                   disabled={loading}
                   onPress={handleSubmit}
                 />
@@ -346,46 +344,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.foreground,
-    marginBottom: 6,
+    marginBottom: 8,
     letterSpacing: 0.3,
   },
-  statusSelectorRow: {
+  statusOptionsList: {
+    gap: 4,
+  },
+  statusOptionRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  statusOption: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: radius.sm,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusOptionOpenActive: {
-    backgroundColor: colors.successSoft,
-  },
-  statusOptionOccupiedActive: {
-    backgroundColor: colors.warningSoft,
-  },
-  statusOptionInactive: {
-    backgroundColor: '#f7f5f2',
-    borderWidth: 1,
-    borderColor: '#e8e3dc',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
   },
   statusOptionText: {
-    ...typography.caption,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 15,
     letterSpacing: 0.3,
   },
   statusOptionTextOpenActive: {
     color: colors.success,
+    fontWeight: '700',
   },
   statusOptionTextOccupiedActive: {
     color: colors.warning,
+    fontWeight: '700',
   },
   statusOptionTextInactive: {
     color: colors.mutedForeground,
+    fontWeight: '500',
+  },
+  checkIconOpen: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.success,
+  },
+  checkIconOccupied: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.warning,
   },
   statusHint: {
     ...typography.caption,

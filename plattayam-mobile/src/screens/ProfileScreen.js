@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import AppHeader from '../components/AppHeader';
@@ -93,6 +93,7 @@ export default function ProfileScreen() {
   }
 
   async function handleSavePhone() {
+    if (isSavingPhone) return;
     const err = validatePhone(phoneInput);
     if (err) {
       setPhoneError(err);
@@ -174,9 +175,14 @@ export default function ProfileScreen() {
                       accessibilityRole="button"
                       accessibilityLabel="Save phone number"
                     >
-                      <Text style={styles.saveButtonText}>
-                        {isSavingPhone ? 'Saving...' : 'Save'}
-                      </Text>
+                      {isSavingPhone ? (
+                        <View style={styles.savingRow}>
+                          <ActivityIndicator size="small" color={colors.white} style={styles.savingSpinner} />
+                          <Text style={styles.saveButtonText}>Saving...</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.saveButtonText}>Save</Text>
+                      )}
                     </Pressable>
                   </View>
                 </View>
@@ -420,6 +426,14 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.white,
     fontWeight: '600',
+  },
+  savingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savingSpinner: {
+    marginRight: 6,
   },
   sectionCard: {
     marginBottom: spacing.lg,

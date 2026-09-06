@@ -10,6 +10,10 @@ const VARIANTS = {
     color: colors.success,
     label: 'Open',
   },
+  vacant: {
+    color: colors.success,
+    label: 'Vacant',
+  },
   full: {
     color: colors.mutedForeground,
     label: 'Full',
@@ -29,6 +33,30 @@ const VARIANTS = {
   rejected: {
     color: colors.destructive,
     label: 'Rejected',
+  },
+  claimed: {
+    color: colors.warning,
+    label: 'Claimed',
+  },
+  resolved: {
+    color: colors.mutedForeground,
+    label: 'Resolved',
+  },
+  closed: {
+    color: colors.mutedForeground,
+    label: 'Closed',
+  },
+  expired: {
+    color: colors.mutedForeground,
+    label: 'Expired',
+  },
+  completed: {
+    color: colors.mutedForeground,
+    label: 'Completed',
+  },
+  cancelled: {
+    color: colors.mutedForeground,
+    label: 'Cancelled',
   },
   neutral: {
     color: colors.mutedForeground,

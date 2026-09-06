@@ -24,11 +24,13 @@ import {
   cancelRide,
   deleteRideRequest,
   getRide,
+  listMyRequests,
   listRideRequests,
   respondToRideRequest,
   sendRideRequest,
 } from '../services/rides';
 import {
+  formatCompactName,
   formatDate,
   formatFullName,
   formatTime,
@@ -66,8 +68,12 @@ export default function RideDetailsScreen() {
     setError('');
 
     try {
-      const rideData = await getRide(cabId);
+      const [rideData, myReqsData] = await Promise.all([
+        getRide(cabId),
+        listMyRequests().catch(() => []),
+      ]);
       setRide(rideData);
+      setMyRequests(Array.isArray(myReqsData) ? myReqsData : []);
 
       // If current user is the ride creator, fetch all requests for this ride
       const isCreator = isRideCreator(rideData, user);
@@ -104,10 +110,11 @@ export default function RideDetailsScreen() {
 
   // Format creator info
   const rawCreatorName = ride?.creator_name || ride?.user_name || ride?.name || 'Campus Rider';
-  const creatorName = formatFullName(rawCreatorName) || rawCreatorName;
+  const creatorName = formatCompactName(rawCreatorName) || rawCreatorName;
   const creatorId = ride?.user_id ?? ride?.userId ?? ride?.creator_id;
 
   async function handleJoinRide() {
+    if (actionLoading) return;
     setActionLoading(true);
     try {
       await sendRideRequest(cabId, 1);
@@ -121,6 +128,12 @@ export default function RideDetailsScreen() {
   }
 
   async function handleCancelMyRequest() {
+    const userReq = getUserRequestForRide(myRequests, cabId);
+    const requestId = userReq?.req_id ?? userReq?.request_id ?? userReq?.id;
+    if (!requestId) {
+      Alert.alert('Error', 'Request ID not found.');
+      return;
+    }
     Alert.alert(
       'Cancel Request',
       'Are you sure you want to cancel your request for this ride?',
@@ -132,7 +145,7 @@ export default function RideDetailsScreen() {
           onPress: async () => {
             setActionLoading(true);
             try {
-              await deleteRideRequest(cabId);
+              await deleteRideRequest(requestId);
               loadData();
             } catch (err) {
               Alert.alert('Error', err.message || 'Could not cancel request.');
@@ -169,10 +182,11 @@ export default function RideDetailsScreen() {
     );
   }
 
-  async function handleRespondRequest(requesterId, action) {
+  async function handleRespondRequest(requestId, action) {
+    if (!requestId || actionLoading) return;
     setActionLoading(true);
     try {
-      await respondToRideRequest(cabId, requesterId, action);
+      await respondToRideRequest(requestId, action);
       loadData();
     } catch (err) {
       Alert.alert('Error', err.message || `Could not ${action} request.`);
@@ -272,16 +286,17 @@ export default function RideDetailsScreen() {
                       </Text>
                     ) : (
                       requests.map((req) => {
-                        const rId = req.user_id ?? req.id;
+                        const reqId = req.req_id ?? req.request_id ?? req.id;
+                        const requesterUserId = req.req_user_id ?? req.user_id;
                         return (
                           <RequestRow
-                            key={req.request_id || req.id || String(rId)}
+                            key={req.req_id || req.request_id || req.id || String(reqId)}
                             request={req}
-                            onPressUser={() => openProfile(rId)}
+                            onPressUser={() => openProfile(requesterUserId)}
                             canRespond={true}
                             loadingAction={actionLoading}
-                            onAccept={() => handleRespondRequest(rId, 'accept')}
-                            onReject={() => handleRespondRequest(rId, 'reject')}
+                            onAccept={() => handleRespondRequest(reqId, 'accept')}
+                            onReject={() => handleRespondRequest(reqId, 'reject')}
                           />
                         );
                       })
@@ -293,6 +308,7 @@ export default function RideDetailsScreen() {
                       label="Cancel This Ride"
                       tone="destructive"
                       loading={actionLoading}
+                      loadingLabel="Cancelling..."
                       onPress={handleCancelRide}
                     />
                   </View>
@@ -310,6 +326,7 @@ export default function RideDetailsScreen() {
                         label="Cancel My Seat"
                         tone="destructive"
                         loading={actionLoading}
+                        loadingLabel="Cancelling..."
                         onPress={handleCancelMyRequest}
                       />
                     </Card>
@@ -323,6 +340,7 @@ export default function RideDetailsScreen() {
                         label="Withdraw Request"
                         tone="secondary"
                         loading={actionLoading}
+                        loadingLabel="Withdrawing..."
                         onPress={handleCancelMyRequest}
                       />
                     </Card>
@@ -337,6 +355,7 @@ export default function RideDetailsScreen() {
                       label="Request to Join Ride"
                       tone="primary"
                       loading={actionLoading}
+                      loadingLabel="Submitting..."
                       onPress={handleJoinRide}
                     />
                   )}
