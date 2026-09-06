@@ -2,29 +2,30 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  View,
 } from 'react-native';
 
 import AppHeader from '../components/AppHeader';
+import AppShell from '../components/AppShell';
+import Card from '../components/Card';
+import FormInput from '../components/FormInput';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../constants/colors';
-import { radius, spacing } from '../constants/spacing';
+import { spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { useAuth } from '../context/AuthContext';
-import { getApiBaseUrl } from '../constants/config';
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const apiBaseUrl = getApiBaseUrl();
   const [rollNo, setRollNo] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function onSubmit() {
+    if (loading) return;
     if (!rollNo.trim() || !password) {
       setError('Roll number and password are required.');
       return;
@@ -42,47 +43,46 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <AppHeader title="Plattayam" subtitle="IIIT Kottayam campus queries" />
+    <AppShell>
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <AppHeader title="Plattayam" subtitle="IIIT Kottayam campus queries" />
 
-      <View style={styles.body}>
-        <Text style={styles.heading}>Sign in</Text>
-        <Text style={styles.copy}>
-          Use your Moodle credentials to log in.
-        </Text>
+        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          <Card padding="xl" style={styles.card}>
+            <Text style={styles.heading}>IIITK Authentication</Text>
+            <Text style={styles.subtext}>Use your LMS credentials</Text>
 
-        <Text style={styles.label}>Roll Number / Username</Text>
-        <TextInput
-          value={rollNo}
-          onChangeText={setRollNo}
-          autoCapitalize="none"
-          placeholder="2023..."
-          placeholderTextColor={colors.mutedForeground}
-          style={styles.input}
-        />
+            <FormInput
+              label="Roll Number / Username"
+              value={rollNo}
+              onChangeText={setRollNo}
+              autoCapitalize="none"
+              placeholder="e.g. 2023110001"
+            />
 
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="Password"
-          placeholderTextColor={colors.mutedForeground}
-          style={styles.input}
-        />
+            <FormInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder="Enter your password"
+            />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <PrimaryButton label="Login" loading={loading} onPress={onSubmit} />
-
-        <Text style={styles.hint}>
-          API: {apiBaseUrl || 'Set EXPO_PUBLIC_API_URL for this device'}
-        </Text>
-      </View>
-    </KeyboardAvoidingView>
+            <PrimaryButton
+              label="Sign In"
+              loading={loading}
+              loadingLabel="Signing In..."
+              onPress={onSubmit}
+            />
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </AppShell>
   );
 }
 
@@ -93,40 +93,28 @@ const styles = StyleSheet.create({
   },
   body: {
     padding: spacing.lg,
-    gap: spacing.sm,
+  },
+  card: {
+    marginTop: spacing.md,
   },
   heading: {
     ...typography.title,
     fontSize: 24,
-    color: colors.foreground,
+    lineHeight: 30,
+    fontWeight: '700',
+    color: colors.accent,
   },
-  copy: {
-    ...typography.body,
+  subtext: {
+    ...typography.caption,
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.mutedForeground,
-    marginBottom: spacing.md,
-    lineHeight: 22,
-  },
-  label: {
-    ...typography.label,
-    color: colors.foreground,
-    marginTop: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.input,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    color: colors.foreground,
+    marginTop: 4,
+    marginBottom: spacing.xl,
   },
   error: {
     color: colors.destructive,
-    marginVertical: spacing.sm,
-  },
-  hint: {
+    marginBottom: spacing.md,
     ...typography.caption,
-    color: colors.mutedForeground,
-    marginTop: spacing.lg,
-  }
+  },
 });

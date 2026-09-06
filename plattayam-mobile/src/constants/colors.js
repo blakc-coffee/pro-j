@@ -1,43 +1,41 @@
 export const colors = {
-  background: '#dcd7c9',
-  foreground: '#2c3639',
-  card: '#e8e4da',
+  // Canvas & Surfaces (Dropbox Warm Cream Editorial Workspace)
+  background: '#f7f5f2',
+  card: '#ffffff',
+  surfaceAlt: '#eee9e2',
 
-  primary: '#3f4e4f',
-  primaryForeground: '#f4f2ec',
-  primarySoft: '#cfd3cd',
+  // Typography
+  foreground: '#1e1919',
+  mutedForeground: '#716b61',
 
-  secondary: '#d1ccbe',
-  mutedForeground: '#6b6f68',
+  // Primary Action (Confident Blue)
+  primary: '#0061fe',
+  primaryForeground: '#ffffff',
+  primarySoft: '#e8f0fe',
 
-  accent: '#a27b5c',
-  accentForeground: '#f8f5f0',
-  accentSoft: '#e6d9cb',
+  // Secondary & Accent (Deep Magenta)
+  secondary: '#eee9e2',
+  accent: '#cd2f7b',
+  accentForeground: '#ffffff',
+  accentSoft: '#fce4ec',
 
-  success: '#4f6f52',
-  successForeground: '#f4f2ec',
-  successSoft: '#d3ddd0',
+  // Status Badges & Notifications
+  success: '#107c41',
+  successForeground: '#ffffff',
+  successSoft: '#e6f4ea',
 
-  warning: '#b07d3c',
-  warningSoft: '#ecdfc9',
+  warning: '#b35900',
+  warningSoft: '#fef7e0',
 
-  destructive: '#a34f43',
-  destructiveForeground: '#f8f0ee',
-  destructiveSoft: '#ecd3cd',
+  destructive: '#d9381e',
+  destructiveForeground: '#ffffff',
+  destructiveSoft: '#fce8e6',
 
-  border: '#c4bfb1',
-  input: '#c4bfb1',
-  ring: '#3f4e4f',
+  // Hairline Borders & Focus Ring
+  border: '#eee9e2',
+  input: '#eee9e2',
+  ring: '#0061fe',
 
   white: '#ffffff',
+  scrim: 'rgba(15, 23, 42, 0.65)',
 };
-
-colors.mutedForeground = colors.mutedForeground;
-colors.primaryForeground = colors.primaryForeground;
-colors.primarySoft = colors.primarySoft;
-colors.successSoft = colors.successSoft;
-colors.successForeground = colors.successForeground;
-colors.warning = colors.warning;
-colors.warningSoft = colors.warningSoft;
-colors.destructiveSoft = colors.destructiveSoft;
-colors.border = colors.border;

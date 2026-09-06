@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { CURRENT_USER_ID } from '../constants/config';
+import { setOnUnauthorized } from '../services/api';
 import { loginRequest } from '../services/auth';
 
 const STORAGE_KEY = 'plattayam.user';
@@ -10,6 +10,20 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
+
+  const logout = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch {}
+    setUser(null);
+  }, []);
+
+  useEffect(() => {
+    // Register centralized unauthorized/expired token handler
+    setOnUnauthorized(() => {
+      logout();
+    });
+  }, [logout]);
 
   useEffect(() => {
     async function restoreUser() {
@@ -34,11 +48,6 @@ export function AuthProvider({ children }) {
     setUser(data);
   }
 
-  async function logout() {
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    setUser(null);
-  }
-
   const value = useMemo(
     () => ({
       user,
@@ -46,7 +55,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
     }),
-    [user, ready]
+    [user, ready, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -26,10 +26,6 @@ function hostFromExpo() {
   return host;
 }
 
-/**
- * Phone + Expo Go cannot use localhost (that would mean the phone itself).
- * We reuse the same LAN host Metro already uses, unless EXPO_PUBLIC_API_URL is set.
- */
 export function getApiBaseUrl() {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
   if (fromEnv) {
@@ -41,5 +37,5 @@ export function getApiBaseUrl() {
     return `http://${host}:${API_PORT}`;
   }
 
-  return null;
+  return `http://127.0.0.1:${API_PORT}`;
 }
