@@ -1,8 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { colors } from '../../../constants/colors';
-import { radius } from '../../../constants/spacing';
-import { typography } from '../../../constants/typography';
 
 /**
  * Normalizes any status input to canonical 'open' | 'occupied'.
@@ -27,53 +25,31 @@ export const AVAILABILITY_LABELS = {
 
 /**
  * AvailabilityBadge component
- * Follows soft semantic styling with zero colored borders.
+ * Status indicators are always plain text without borders, pills, or background containers.
  */
 export default function AvailabilityBadge({ status, style, textStyle }) {
   const canonical = normalizeAvailabilityStatus(status);
   const isOpen = canonical === 'open';
 
   return (
-    <View
+    <Text
       style={[
-        styles.badge,
-        isOpen ? styles.badgeOpen : styles.badgeOccupied,
+        styles.text,
+        isOpen ? styles.textOpen : styles.textOccupied,
         style,
+        textStyle,
       ]}
       accessibilityRole="text"
       accessibilityLabel={`Status: ${AVAILABILITY_LABELS[canonical]}`}
     >
-      <Text
-        style={[
-          styles.text,
-          isOpen ? styles.textOpen : styles.textOccupied,
-          textStyle,
-        ]}
-      >
-        {AVAILABILITY_LABELS[canonical]}
-      </Text>
-    </View>
+      {AVAILABILITY_LABELS[canonical]}
+    </Text>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeOpen: {
-    backgroundColor: colors.successSoft,
-  },
-  badgeOccupied: {
-    backgroundColor: colors.warningSoft,
-  },
   text: {
-    ...typography.caption,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.4,
   },

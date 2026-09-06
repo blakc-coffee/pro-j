@@ -31,24 +31,26 @@ def run_migration():
         if "image_url" not in columns:
             print("Adding column 'image_url' (LONGTEXT NULL) to 'lost_found_items'...")
             with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE lost_found_items ADD COLUMN image_url LONGTEXT NULL;"))
+                col_type = "LONGTEXT NULL" if engine.dialect.name == "mysql" else "TEXT"
+                conn.execute(text(f"ALTER TABLE lost_found_items ADD COLUMN image_url {col_type};"))
             print("[OK] Column 'image_url' added successfully.")
         else:
             print("[OK] Column 'image_url' already exists.")
 
-        # Ensure image_url is LONGTEXT to support high-resolution base64 data URLs
-        for col in inspector.get_columns("lost_found_items"):
-            if col["name"] == "image_url":
-                type_str = str(col["type"]).upper()
-                print(f"Current image_url column type: {type_str}")
-                if "LONGTEXT" not in type_str:
-                    print("Modifying 'image_url' to LONGTEXT NULL for large image data URL support...")
-                    with engine.begin() as conn:
-                        conn.execute(text("ALTER TABLE lost_found_items MODIFY COLUMN image_url LONGTEXT NULL;"))
-                    print("[OK] Column 'image_url' modified to LONGTEXT NULL.")
+        # Ensure image_url is LONGTEXT in MySQL to support high-resolution base64 data URLs
+        if engine.dialect.name == "mysql":
+            for col in inspector.get_columns("lost_found_items"):
+                if col["name"] == "image_url":
+                    type_str = str(col["type"]).upper()
+                    print(f"Current image_url column type: {type_str}")
+                    if "LONGTEXT" not in type_str:
+                        print("Modifying 'image_url' to LONGTEXT NULL for large image data URL support...")
+                        with engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE lost_found_items MODIFY COLUMN image_url LONGTEXT NULL;"))
+                        print("[OK] Column 'image_url' modified to LONGTEXT NULL.")
 
     # 3. Check hackfind_profiles hackathon column and ensure it is nullable
-    if "hackfind_profiles" in updated_tables:
+    if "hackfind_profiles" in updated_tables and engine.dialect.name == "mysql":
         for col in inspector.get_columns("hackfind_profiles"):
             if col["name"] == "hackathon":
                 if not col["nullable"]:

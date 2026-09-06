@@ -8,9 +8,9 @@ import { typography } from '../../../constants/typography';
 export default function TeamCard({ team, onPress }) {
   if (!team) return null;
 
-  const isLooking = team.status === 'looking_for_members';
   const memberCount = Array.isArray(team.members) ? team.members.length : 1;
   const maxMembers = team.maxMembers || 4;
+  const isVacant = team.status === 'looking_for_members' || memberCount < maxMembers;
 
   const skillsText = Array.isArray(team.skills)
     ? team.skills.join(' · ')
@@ -27,8 +27,8 @@ export default function TeamCard({ team, onPress }) {
         <Text style={styles.teamName} numberOfLines={1}>
           {team.name}
         </Text>
-        <Text style={[styles.statusText, isLooking ? styles.statusLooking : styles.statusFull]}>
-          {isLooking ? 'LOOKING FOR MEMBERS' : 'FULL'}
+        <Text style={[styles.statusText, isVacant ? styles.statusLooking : styles.statusFull]}>
+          {isVacant ? 'Vacant' : 'Full'}
         </Text>
       </View>
 
@@ -100,16 +100,15 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
   },
   statusLooking: {
-    color: colors.success, // #107c41
+    color: colors.success,
   },
   statusFull: {
-    color: colors.mutedForeground, // #716b61
+    color: colors.mutedForeground,
   },
   hackathonTag: {
     fontSize: 12,

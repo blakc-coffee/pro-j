@@ -46,10 +46,17 @@ export function listRideRequests(cabId) {
   return apiRequest(`/cab-queries/${cabId}/requests`);
 }
 
-export function respondToRideRequest(cabId, requesterId, action) {
-  return apiRequest(`/cab-requests/${requesterId}`, {
+export function respondToRideRequest(cabIdOrRequestId, requestIdOrAction, maybeAction) {
+  const requestId = maybeAction !== undefined ? requestIdOrAction : cabIdOrRequestId;
+  const action = maybeAction !== undefined ? maybeAction : requestIdOrAction;
+  const normalizedStatus =
+    String(action).toLowerCase() === 'accept' || String(action).toLowerCase() === 'accepted'
+      ? 'Accepted'
+      : 'Rejected';
+
+  return apiRequest(`/cab-requests/${requestId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status: action === 'accept' ? 'Accepted' : 'Rejected' }),
+    body: JSON.stringify({ status: normalizedStatus }),
   });
 }
 

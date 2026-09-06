@@ -36,6 +36,7 @@ export default function CreateTeamScreen() {
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
+    if (loading) return;
     if (!name.trim()) {
       setError('Team name is required.');
       return;
@@ -165,9 +166,10 @@ export default function CreateTeamScreen() {
 
               <View style={styles.btnRow}>
                 <PrimaryButton
-                  label="Publish Team"
+                  label="Create Team"
                   tone="primary"
                   loading={loading}
+                  loadingLabel="Creating..."
                   disabled={loading}
                   onPress={handleSubmit}
                 />

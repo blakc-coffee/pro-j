@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -253,7 +254,11 @@ export default function ItemDetailsScreen() {
                 <Text
                   style={[
                     styles.statusText,
-                    item?.status === 'open' ? styles.statusTextOpen : styles.statusTextClosed,
+                    item?.status === 'claimed'
+                      ? styles.statusTextClaimed
+                      : item?.status === 'resolved'
+                      ? styles.statusTextResolved
+                      : styles.statusTextOpen,
                   ]}
                 >
                   {(item?.status || 'open').toUpperCase()}
@@ -437,9 +442,11 @@ export default function ItemDetailsScreen() {
                     ]}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.sendButtonText}>
-                      {postingMessage ? '...' : 'Send'}
-                    </Text>
+                    {postingMessage ? (
+                      <ActivityIndicator size="small" color={colors.primaryForeground} />
+                    ) : (
+                      <Text style={styles.sendButtonText}>Send</Text>
+                    )}
                   </Pressable>
                 </View>
               </View>
@@ -538,6 +545,12 @@ const styles = StyleSheet.create({
   },
   statusTextOpen: {
     color: colors.success,
+  },
+  statusTextClaimed: {
+    color: colors.warning,
+  },
+  statusTextResolved: {
+    color: colors.mutedForeground,
   },
   statusTextClosed: {
     color: colors.mutedForeground,
@@ -649,59 +662,47 @@ const styles = StyleSheet.create({
   ownerActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.md,
+    alignItems: 'center',
   },
   ownerButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editOwnerButton: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
+  editOwnerButton: {},
   editOwnerButtonText: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.foreground,
   },
-  claimedButton: {
-    backgroundColor: colors.warningSoft,
-  },
+  claimedButton: {},
   claimedButtonText: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.warning,
   },
-  resolvedButton: {
-    backgroundColor: colors.successSoft,
-  },
+  resolvedButton: {},
   resolvedButtonText: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.success,
   },
-  reopenButton: {
-    backgroundColor: colors.primarySoft,
-  },
+  reopenButton: {},
   reopenButtonText: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.primary,
   },
-  deleteButton: {
-    backgroundColor: colors.destructiveSoft,
-  },
+  deleteButton: {},
   deleteButtonText: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.destructive,
   },

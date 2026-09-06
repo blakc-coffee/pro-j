@@ -119,11 +119,7 @@ export default function UserProfileModal({ userId, visible, onClose }) {
                   <Avatar name={displayName} size={56} style={styles.avatar} />
                   <View style={styles.nameSection}>
                     <Text style={styles.fullName}>{displayName}</Text>
-                    {rollNo ? (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{rollNo}</Text>
-                      </View>
-                    ) : null}
+                    {rollNo ? <Text style={styles.rollNo}>{rollNo}</Text> : null}
                   </View>
                 </View>
 
@@ -264,19 +260,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.foreground,
   },
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  badgeText: {
+  rollNo: {
     ...typography.caption,
-    fontWeight: '600',
-    color: colors.foreground,
+    fontSize: 13,
+    color: colors.mutedForeground,
+    marginTop: 2,
   },
   divider: {
     height: 1,

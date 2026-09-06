@@ -17,7 +17,7 @@ import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { listRides } from '../services/rides';
-import { isFullRide } from '../../../utils/format';
+import { isFullRide, sortRidesAvailableFirst } from '../../../utils/format';
 
 const FILTERS = ['All', 'Open', 'Full'];
 
@@ -27,10 +27,15 @@ export default function CabsScreen() {
   const [filter, setFilter] = useState('All');
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const loadRides = useCallback(async () => {
-    setLoading(true);
+  const loadRides = useCallback(async (isPullRefresh = false) => {
+    if (isPullRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError('');
     try {
       const data = await listRides();
@@ -42,6 +47,7 @@ export default function CabsScreen() {
       setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -53,7 +59,7 @@ export default function CabsScreen() {
 
   const visibleRides = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return rides.filter((ride) => {
+    const filtered = rides.filter((ride) => {
       if (filter === 'Open' && isFullRide(ride)) return false;
       if (filter === 'Full' && !isFullRide(ride)) return false;
 
@@ -66,6 +72,8 @@ export default function CabsScreen() {
       }
       return true;
     });
+
+    return sortRidesAvailableFirst(filtered);
   }, [rides, filter, search]);
 
   return (
@@ -98,7 +106,7 @@ export default function CabsScreen() {
         </View>
 
         <ScreenState
-          loading={loading}
+          loading={loading && !refreshing}
           error={error}
           empty={!loading && !error && visibleRides.length === 0}
           emptyMessage="No rides match this search yet."
@@ -108,6 +116,8 @@ export default function CabsScreen() {
             keyExtractor={(item) => String(item.cab_id)}
             renderItem={({ item }) => <RideCard ride={item} />}
             contentContainerStyle={styles.list}
+            refreshing={refreshing}
+            onRefresh={() => loadRides(true)}
           />
         </ScreenState>
 

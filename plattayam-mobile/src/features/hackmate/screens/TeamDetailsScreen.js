@@ -29,6 +29,7 @@ import {
   removeTeamMember,
   respondToTeamRequest,
 } from '../services/hackfind';
+import TeamRequestCard from '../components/TeamRequestCard';
 import { formatFullName } from '../../../utils/format';
 
 export default function TeamDetailsScreen() {
@@ -185,6 +186,7 @@ export default function TeamDetailsScreen() {
 
   // --- CANDIDATE ACTIONS ---
   const handleApplyToTeam = async () => {
+    if (actionBusy) return;
     setActionBusy(true);
     try {
       await applyToTeam(teamId, {
@@ -220,8 +222,8 @@ export default function TeamDetailsScreen() {
                 <View style={styles.headerRow}>
                   <Text style={styles.teamName}>{team.name}</Text>
                   <StatusBadge
-                    status={team.status === 'looking_for_members' ? 'open' : 'full'}
-                    label={team.status === 'looking_for_members' ? 'LOOKING' : 'FULL'}
+                    status={!isFull ? 'vacant' : 'full'}
+                    label={!isFull ? 'Vacant' : 'Full'}
                   />
                 </View>
 
@@ -329,17 +331,22 @@ export default function TeamDetailsScreen() {
               {isLeader ? (
                 /* Leader Controls: View Join Requests & Delete Team */
                 <View style={styles.leaderActions}>
-                  <PrimaryButton
-                    label={`Manage Join Requests (${requests.length})`}
-                    tone="primary"
-                    onPress={() =>
-                      navigation.navigate('TeamRequests', {
-                        teamId: team.id,
-                        teamName: team.name,
-                      })
-                    }
-                    style={styles.actionBtn}
-                  />
+                  {requests.length > 0 ? (
+                    <View style={styles.section}>
+                      <Text style={styles.sectionLabel}>
+                        Pending Join Requests ({requests.filter((r) => r.status === 'pending').length})
+                      </Text>
+                      {requests.map((req) => (
+                        <TeamRequestCard
+                          key={req.id}
+                          request={req}
+                          busy={actionBusy}
+                          onAccept={() => handleAcceptRequest(req.id)}
+                          onReject={() => handleRejectRequest(req.id)}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
 
                   <View style={styles.deleteSpacer} />
 
@@ -347,6 +354,7 @@ export default function TeamDetailsScreen() {
                     label="Delete Team"
                     tone="destructive"
                     loading={actionBusy}
+                    loadingLabel="Deleting..."
                     onPress={handleDeleteTeam}
                     style={styles.actionBtn}
                   />
@@ -359,6 +367,7 @@ export default function TeamDetailsScreen() {
                     label="Leave Team"
                     tone="destructive"
                     loading={actionBusy}
+                    loadingLabel="Leaving..."
                     onPress={handleLeaveTeam}
                     style={styles.actionBtn}
                   />
@@ -370,7 +379,7 @@ export default function TeamDetailsScreen() {
                   <Text style={styles.pendingNoticeBody}>
                     Your application to join this team is currently under review by the team leader.
                   </Text>
-                  <Text style={styles.statusPendingBadge}>STATUS: PENDING</Text>
+                  <Text style={styles.statusPendingBadge}>PENDING</Text>
                 </Card>
               ) : (
                 /* Candidate / Outsider: Apply to Join */
@@ -381,6 +390,7 @@ export default function TeamDetailsScreen() {
                     tone="primary"
                     disabled={isFull || actionBusy}
                     loading={actionBusy}
+                    loadingLabel="Submitting..."
                     onPress={handleApplyToTeam}
                   />
                 </Card>
