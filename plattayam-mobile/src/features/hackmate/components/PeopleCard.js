@@ -6,11 +6,11 @@ import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { formatFullName } from '../../../utils/format';
+import AvailabilityBadge from './AvailabilityBadge';
 
 export default function PeopleCard({ person, onPress }) {
   if (!person) return null;
 
-  const isOpen = person.status === 'open_to_join';
   const displayName = formatFullName(person.name) || person.name || 'Candidate';
   const rollText = person.roll_no || person.rollNo || '';
 
@@ -34,9 +34,7 @@ export default function PeopleCard({ person, onPress }) {
           {rollText ? <Text style={styles.rollNo}>{rollText}</Text> : null}
         </View>
 
-        <Text style={[styles.statusText, isOpen ? styles.statusOpen : styles.statusFound]}>
-          {isOpen ? 'OPEN TO JOIN' : 'TEAM FOUND'}
-        </Text>
+        <AvailabilityBadge status={person.status} />
       </View>
 
       {/* Role & Hackathon Kicker */}

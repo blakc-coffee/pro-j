@@ -1,3 +1,6 @@
+// PROJECT-WIDE DESIGN RULE:
+// "Status indicators are always plain text. Never use colored status borders, outlines, pills, badges, or colored containers."
+
 import { StyleSheet, Text } from 'react-native';
 
 import { colors } from '../constants/colors';

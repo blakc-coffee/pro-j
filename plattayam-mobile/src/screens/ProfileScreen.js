@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import AppHeader from '../components/AppHeader';
 import AppShell from '../components/AppShell';
@@ -8,16 +8,25 @@ import Card from '../components/Card';
 import FormInput from '../components/FormInput';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../constants/colors';
-import { spacing } from '../constants/spacing';
+import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile, updateUserProfile } from '../features/rides/services/rides';
+import {
+  getUserProfile,
+  listMyRequests,
+  listMyRides,
+  updateUserProfile,
+} from '../features/rides/services/rides';
 import { formatFullName } from '../utils/format';
 
 export default function ProfileScreen() {
+  const navigation = useNavigation();
   const { user, logout } = useAuth();
 
   const [profileData, setProfileData] = useState(null);
+  const [myRides, setMyRides] = useState([]);
+  const [myRequests, setMyRequests] = useState([]);
+  const [loadingRides, setLoadingRides] = useState(true);
 
   // Phone editing state
   const [isEditingPhone, setIsEditingPhone] = useState(false);
@@ -28,11 +37,20 @@ export default function ProfileScreen() {
   const currentUserId = user?.user_id ?? user?.id;
 
   const loadData = useCallback(async () => {
-    if (currentUserId) {
-      try {
-        const p = await getUserProfile(currentUserId);
-        setProfileData(p);
-      } catch {}
+    setLoadingRides(true);
+    try {
+      const promises = [listMyRides(), listMyRequests()];
+      if (currentUserId) {
+        promises.push(getUserProfile(currentUserId));
+      }
+      const [ridesData, reqsData, profile] = await Promise.all(promises);
+      setMyRides(Array.isArray(ridesData) ? ridesData : []);
+      setMyRequests(Array.isArray(reqsData) ? reqsData : []);
+      if (profile) {
+        setProfileData(profile);
+      }
+    } catch {} finally {
+      setLoadingRides(false);
     }
   }, [currentUserId]);
 
@@ -96,13 +114,13 @@ export default function ProfileScreen() {
   return (
     <AppShell>
       <View style={styles.screen}>
-        <AppHeader title="Profile" subtitle="Your campus account" />
+        <AppHeader title="Profile" subtitle="Your campus account & activity" />
 
         <ScrollView contentContainerStyle={styles.body}>
-          {/* Main User Identity Card */}
-          <Card padding="lg" style={styles.userCard}>
+          {/* SECTION 1: MY PROFILE */}
+          <Card padding="lg" style={styles.sectionCard}>
             <View style={styles.cardHeaderRow}>
-              <Text style={styles.cardKicker}>PROFILE</Text>
+              <Text style={styles.cardKicker}>MY PROFILE</Text>
               {user?.roll_no ? (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{user.roll_no}</Text>
@@ -197,6 +215,89 @@ export default function ProfileScreen() {
             </View>
           </Card>
 
+          {/* SECTION 2: MY CAB RIDES */}
+          <Card padding="lg" style={styles.sectionCard}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardKicker}>MY CAB RIDES</Text>
+              {myRides.length > 0 ? (
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{myRides.length}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.sectionDesc}>
+              {myRides.length > 0
+                ? `You have ${myRides.length} active posted ride${myRides.length === 1 ? '' : 's'}. Manage riders, seat requests, or cancel rides.`
+                : "You haven't posted any rides yet. Create a ride to share travel with campus peers."}
+            </Text>
+            <View style={styles.actionRow}>
+              <PrimaryButton
+                label="Manage"
+                tone="outline"
+                onPress={() => navigation.navigate('MyRides', { initialTab: 'posted' })}
+              />
+            </View>
+          </Card>
+
+          {/* SECTION 3: MY REQUESTS */}
+          <Card padding="lg" style={styles.sectionCard}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardKicker}>MY REQUESTS</Text>
+              {myRequests.length > 0 ? (
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{myRequests.length}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.sectionDesc}>
+              {myRequests.length > 0
+                ? `You have ${myRequests.length} ride request${myRequests.length === 1 ? '' : 's'}. Track request status or cancel pending requests.`
+                : "You haven't requested to join any rides yet. Browse available rides to travel together."}
+            </Text>
+            <View style={styles.actionRow}>
+              <PrimaryButton
+                label="Manage"
+                tone="outline"
+                onPress={() => navigation.navigate('MyRides', { initialTab: 'requests' })}
+              />
+            </View>
+          </Card>
+
+          {/* SECTION 3: MY ITEMS */}
+          <Card padding="lg" style={styles.sectionCard}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardKicker}>MY ITEMS</Text>
+            </View>
+            <Text style={styles.sectionDesc}>
+              Manage your lost & found listings, update status, or resolve claims.
+            </Text>
+            <View style={styles.actionRow}>
+              <PrimaryButton
+                label="View My Items"
+                tone="outline"
+                onPress={() => navigation.navigate('MyItems')}
+              />
+            </View>
+          </Card>
+
+          {/* SECTION 4: MY HACKMATE */}
+          <Card padding="lg" style={styles.sectionCard}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardKicker}>MY HACKMATE</Text>
+            </View>
+            <Text style={styles.sectionDesc}>
+              Manage your hackathon candidate profile, created teams, and membership requests.
+            </Text>
+            <View style={styles.actionRow}>
+              <PrimaryButton
+                label="View HackMate"
+                tone="outline"
+                onPress={() => navigation.navigate('HackFindHub')}
+              />
+            </View>
+          </Card>
+
+          {/* LOGOUT */}
           <View style={styles.logoutWrap}>
             <PrimaryButton label="Logout" tone="destructive" onPress={logout} />
           </View>
@@ -320,6 +421,17 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
   },
+  sectionCard: {
+    marginBottom: spacing.lg,
+  },
+  sectionDesc: {
+    ...typography.body,
+    color: colors.mutedForeground,
+    marginBottom: spacing.md,
+  },
+  actionRow: {
+    marginTop: spacing.xs,
+  },
   divider: {
     height: 1,
     backgroundColor: colors.border,
@@ -327,5 +439,19 @@ const styles = StyleSheet.create({
   },
   logoutWrap: {
     marginTop: spacing.xs,
+  },
+  countBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  countBadgeText: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.foreground,
   },
 });

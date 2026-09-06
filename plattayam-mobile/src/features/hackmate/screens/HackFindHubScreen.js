@@ -17,6 +17,7 @@ import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { useAuth } from '../../../context/AuthContext';
 import { getPerson, listMyTeams } from '../services/hackfind';
+import AvailabilityBadge from '../components/AvailabilityBadge';
 
 export default function HackFindHubScreen() {
   const navigation = useNavigation();
@@ -82,24 +83,23 @@ export default function HackFindHubScreen() {
                   <Text style={styles.cardTitle}>My Profile</Text>
                 </View>
                 {myProfile ? (
-                  <View style={styles.activeBadge}>
-                    <Text style={styles.activeBadgeText}>ACTIVE</Text>
-                  </View>
+                  <Text style={styles.activeStatusText}>ACTIVE</Text>
                 ) : (
-                  <View style={styles.noneBadge}>
-                    <Text style={styles.noneBadgeText}>NOT CREATED</Text>
-                  </View>
+                  <Text style={styles.noneStatusText}>NOT CREATED</Text>
                 )}
               </View>
 
               {myProfile ? (
                 <View style={styles.profileSummary}>
-                  <Text style={styles.profileHeadline} numberOfLines={1}>
-                    {myProfile.role}
-                  </Text>
-                  <Text style={styles.profileMeta}>
-                    {myProfile.hackathon} {myProfile.status === 'open_to_join' ? '· Open to join' : '· Team found'}
-                  </Text>
+                  <View style={styles.profileRoleRow}>
+                    <Text style={styles.profileHeadline} numberOfLines={1}>
+                      {myProfile.role}
+                    </Text>
+                    <AvailabilityBadge status={myProfile.status} />
+                  </View>
+                  {myProfile.hackathon ? (
+                    <Text style={styles.profileMeta}>{myProfile.hackathon}</Text>
+                  ) : null}
                   {myProfile.skills ? (
                     <Text style={styles.profileSkills} numberOfLines={1}>
                       Skills: {Array.isArray(myProfile.skills) ? myProfile.skills.join(' · ') : myProfile.skills}
@@ -299,40 +299,36 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginLeft: spacing.sm,
   },
-  activeBadge: {
-    backgroundColor: '#e6f4ea',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: '#ceead6',
-  },
-  activeBadgeText: {
+  activeStatusText: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.success,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
-  noneBadge: {
-    backgroundColor: '#f1f3f4',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: '#dadce0',
-  },
-  noneBadgeText: {
+  noneStatusText: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.mutedForeground,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   profileSummary: {
     marginTop: spacing.sm,
     paddingTop: spacing.xs,
   },
+  profileRoleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   profileHeadline: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.foreground,
+    flex: 1,
+    marginRight: spacing.sm,
   },
   profileMeta: {
     ...typography.caption,

@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
-import AppHeader from '../../../components/AppHeader';
 import AppShell from '../../../components/AppShell';
 import FormInput from '../../../components/FormInput';
 import PrimaryButton from '../../../components/PrimaryButton';
@@ -35,7 +34,10 @@ export default function CabsScreen() {
     setError('');
     try {
       const data = await listRides();
-      setRides(Array.isArray(data) ? data : []);
+      const sorted = Array.isArray(data)
+        ? [...data].sort((a, b) => (Number(b.cab_id) || 0) - (Number(a.cab_id) || 0))
+        : [];
+      setRides(sorted);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,15 +69,8 @@ export default function CabsScreen() {
   }, [rides, filter, search]);
 
   return (
-    <AppShell>
+    <AppShell safeTop>
       <View style={styles.screen}>
-        <AppHeader
-          title="Cabs"
-          subtitle="Find or post a shared ride from campus"
-          actionLabel="My Rides"
-          onAction={() => navigation.navigate('MyRides')}
-        />
-
         <View style={styles.controls}>
           <FormInput
             value={search}

@@ -1,5 +1,8 @@
+from __future__ import annotations
 from datetime import date, datetime, time
+from datetime import date as dt_date, time as dt_time
 from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from database import Base
 from pydantic import BaseModel
@@ -28,6 +31,24 @@ class CabQuery(Base):
     status = Column(String(10), nullable=False)
     seats_avbl = Column(Integer, nullable=False)
 
+    user = relationship("Users", foreign_keys=[user_id])
+
+    @property
+    def user_name(self):
+        return self.user.name if self.user else None
+
+    @property
+    def creator_name(self):
+        return self.user.name if self.user else None
+
+    @property
+    def date(self):
+        return self.travel_date
+
+    @property
+    def time(self):
+        return self.dep_time
+
 
 class CabRequests(Base):
     __tablename__ = "cab_requests"
@@ -40,6 +61,44 @@ class CabRequests(Base):
     req_id = Column(Integer, primary_key=True, nullable=False)
     status = Column(String(10), nullable=False)
     created_at = Column(DateTime, nullable=False)
+
+    ride = relationship("CabQuery", foreign_keys=[cab_id], lazy="joined")
+
+    @property
+    def from_loc(self):
+        return self.ride.from_loc if self.ride else None
+
+    @property
+    def to_loc(self):
+        return self.ride.to_loc if self.ride else None
+
+    @property
+    def travel_date(self):
+        return self.ride.travel_date if self.ride else None
+
+    @property
+    def date(self):
+        return self.travel_date
+
+    @property
+    def dep_time(self):
+        return self.ride.dep_time if self.ride else None
+
+    @property
+    def time(self):
+        return self.dep_time
+
+    @property
+    def seats_avbl(self):
+        return self.ride.seats_avbl if self.ride else None
+
+    @property
+    def creator_name(self):
+        return self.ride.creator_name if self.ride else None
+
+    @property
+    def user_name(self):
+        return self.ride.user_name if self.ride else None
 
 
 # =====================================================================
@@ -107,16 +166,53 @@ class HackFindProfile(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), unique=True, nullable=False)
     role = Column(String(100), nullable=False)
-    hackathon = Column(String(100), nullable=False)
+    hackathon = Column(String(100), nullable=True, default="")
     skills = Column(String(500), nullable=True)
     tech_stack = Column(String(500), nullable=True)
     experience = Column(String(500), nullable=True)
     about = Column(Text, nullable=True)
     portfolio = Column(String(200), nullable=True)
     contact = Column(String(200), nullable=True)
-    status = Column(String(20), nullable=False, default="open_to_join")  # 'open_to_join', 'team_found'
+    status = Column(String(20), nullable=False, default="open")  # 'open', 'occupied'
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
+    user = relationship("Users", foreign_keys=[user_id])
+
+
+# =====================================================================
+# LOST & FOUND SQLALCHEMY MODELS
+# =====================================================================
+
+class LostFoundItem(Base):
+    __tablename__ = "lost_found_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    title = Column(String(200), nullable=False)
+    type = Column(String(20), nullable=False)  # 'lost' | 'found'
+    category = Column(String(50), nullable=False)  # 'Electronics', 'Cards & IDs', 'Keys', 'Clothing', 'Books', 'Other'
+    location = Column(String(200), nullable=False)
+    item_date = Column(Date, nullable=False)
+    description = Column(Text, nullable=True)
+    contact_info = Column(String(200), nullable=True)
+    image_url = Column(Text().with_variant(LONGTEXT, "mysql"), nullable=True)
+    status = Column(String(20), nullable=False, default="open")  # 'open' | 'claimed' | 'resolved'
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    user = relationship("Users", foreign_keys=[user_id])
+    messages = relationship("LostFoundMessage", back_populates="item", cascade="all, delete-orphan", order_by="LostFoundMessage.created_at.asc()")
+
+
+class LostFoundMessage(Base):
+    __tablename__ = "lost_found_messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    item_id = Column(Integer, ForeignKey("lost_found_items.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    item = relationship("LostFoundItem", back_populates="messages")
     user = relationship("Users", foreign_keys=[user_id])
 
 
@@ -154,21 +250,30 @@ class UserContactUpdate(BaseModel):
 
 class CabQueryOut(BaseModel):
     cab_id: int
-    travel_date: date
+    travel_date: dt_date
     user_id: int
     from_loc: str
     to_loc: str
-    dep_time: time
+    dep_time: dt_time
     status: str
     seats_avbl: int
+    user_name: str | None = None
+    creator_name: str | None = None
+    date: dt_date | None = None
+    time: dt_time | None = None
     model_config = {"from_attributes": True}
 
 class CabQueryCreate(BaseModel):
-    travel_date: date
     from_loc: str
     to_loc: str
-    dep_time: time
-    seats_avbl: int
+    travel_date: dt_date | None = None
+    date: dt_date | None = None
+    dep_time: dt_time | None = None
+    time: dt_time | None = None
+    seats_avbl: int | None = None
+    seats: int | None = None
+    price: float | None = None
+    notes: str | None = None
 
 class CabQueryUpdate(BaseModel):
     travel_date: date | None = None
@@ -184,6 +289,15 @@ class CabRequestOut(BaseModel):
     req_id: int
     status: str
     created_at: datetime
+    from_loc: str | None = None
+    to_loc: str | None = None
+    travel_date: dt_date | None = None
+    date: dt_date | None = None
+    dep_time: dt_time | None = None
+    time: dt_time | None = None
+    seats_avbl: int | None = None
+    creator_name: str | None = None
+    user_name: str | None = None
     model_config = {"from_attributes": True}
 
 class CabRequestUpdate(BaseModel):
@@ -239,15 +353,27 @@ class TeamOut(BaseModel):
 
 class PersonCreate(BaseModel):
     role: str
-    hackathon: str
-    skills: list[str] | str | None = None
+    skills: list[str] | str
+    contact: str
+    hackathon: str | None = None
     tech_stack: list[str] | str | None = None
     techStack: list[str] | str | None = None
     experience: str | None = None
     about: str | None = None
     portfolio: str | None = None
+    status: str = "open"
+
+class PersonUpdate(BaseModel):
+    role: str | None = None
+    skills: list[str] | str | None = None
     contact: str | None = None
-    status: str = "open_to_join"
+    hackathon: str | None = None
+    tech_stack: list[str] | str | None = None
+    techStack: list[str] | str | None = None
+    experience: str | None = None
+    about: str | None = None
+    portfolio: str | None = None
+    status: str | None = None
 
 class PersonOut(BaseModel):
     id: str
@@ -257,7 +383,7 @@ class PersonOut(BaseModel):
     roll_no: str | None = None
     rollNo: str | None = None
     role: str
-    hackathon: str
+    hackathon: str | None = None
     skills: list[str] = []
     tech_stack: list[str] = []
     techStack: list[str] = []
@@ -265,7 +391,7 @@ class PersonOut(BaseModel):
     about: str | None = None
     portfolio: str | None = None
     contact: str | None = None
-    status: str = "open_to_join"
+    status: str = "open"
     created_at: str
     createdAt: str
 
@@ -294,10 +420,81 @@ class JoinRequestOut(BaseModel):
     createdAt: str
 
 class PendingRequestWithTeamOut(BaseModel):
-    request: JoinRequestOut
-    team: TeamOut
+    request: JoinRequestOut | None = None
+    team: TeamOut | None = None
+    id: str | None = None
+    team_id: str | None = None
+    teamId: str | None = None
+    team_name: str | None = None
+    teamName: str | None = None
+    team_hackathon: str | None = None
+    teamHackathon: str | None = None
+    role: str = "Applicant"
+    status: str = "pending"
+    notes: str | None = None
+    created_at: str | None = None
+    createdAt: str | None = None
 
 class MyTeamsOut(BaseModel):
     leading: list[TeamOut] = []
     joined: list[TeamOut] = []
     pending: list[PendingRequestWithTeamOut] = []
+
+
+# =====================================================================
+# LOST & FOUND PYDANTIC SCHEMAS
+# =====================================================================
+
+class MessageCreate(BaseModel):
+    message: str
+
+class MessageOut(BaseModel):
+    id: int
+    item_id: int
+    user_id: int
+    message: str
+    created_at: datetime
+    user_name: str | None = None
+    user_roll_no: str | None = None
+    model_config = {"from_attributes": True}
+
+class ItemCreate(BaseModel):
+    title: str
+    type: str  # 'lost' | 'found'
+    category: str  # 'Electronics' | 'Cards & IDs' | 'Keys' | 'Clothing' | 'Books' | 'Other'
+    location: str
+    item_date: date
+    description: str | None = None
+    contact_info: str | None = None
+    image_url: str | None = None
+
+class ItemUpdate(BaseModel):
+    title: str | None = None
+    type: str | None = None
+    category: str | None = None
+    location: str | None = None
+    item_date: date | None = None
+    description: str | None = None
+    contact_info: str | None = None
+    image_url: str | None = None
+
+class ItemStatusUpdate(BaseModel):
+    status: str  # 'open' | 'claimed' | 'resolved'
+
+class ItemOut(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    type: str
+    category: str
+    location: str
+    item_date: date
+    description: str | None = None
+    contact_info: str | None = None
+    image_url: str | None = None
+    status: str
+    created_at: datetime
+    user_name: str | None = None
+    user_roll_no: str | None = None
+    messages: list[MessageOut] = []
+    model_config = {"from_attributes": True}

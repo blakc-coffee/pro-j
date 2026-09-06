@@ -37,4 +37,5 @@ export const colors = {
   ring: '#0061fe',
 
   white: '#ffffff',
+  scrim: 'rgba(15, 23, 42, 0.65)',
 };
