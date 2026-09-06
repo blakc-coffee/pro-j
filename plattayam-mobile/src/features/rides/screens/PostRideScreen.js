@@ -188,15 +188,19 @@ export default function PostRideScreen() {
         notes: notes.trim() || undefined,
       });
 
-      Alert.alert('Success', 'Your ride has been posted!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      if (Platform.OS === 'web') {
+        window.alert('Your ride has been posted!');
+        navigation.goBack();
+      } else {
+        Alert.alert('Success', 'Your ride has been posted!', [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ]);
+      }
     } catch (err) {
       Alert.alert('Error', err.message || 'Could not post ride. Please try again.');
-    } finally {
       setLoading(false);
     }
   }
