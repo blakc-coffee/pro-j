@@ -5,6 +5,8 @@ import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 
+const lostFoundIcon = require('../../../../assets/icon-lostfound.png');
+
 function formatPostedDate(dateStr) {
   if (!dateStr) return '';
   try {
@@ -51,9 +53,11 @@ export default function ItemCard({ item, onPress }) {
           </View>
         ) : (
           <View style={styles.placeholderContainer}>
-            <Text style={styles.placeholderIcon}>
-              {isLost ? '🔍' : '📦'}
-            </Text>
+            <Image
+              source={lostFoundIcon}
+              style={styles.placeholderIconImage}
+              resizeMode="contain"
+            />
             {item.category ? (
               <Text style={styles.placeholderCategory}>{item.category}</Text>
             ) : null}
@@ -128,8 +132,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  placeholderIcon: {
-    fontSize: 28,
+  placeholderIconImage: {
+    width: 32,
+    height: 32,
+    tintColor: colors.mutedForeground,
   },
   placeholderCategory: {
     ...typography.caption,

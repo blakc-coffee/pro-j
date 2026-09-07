@@ -1,9 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Card from '../../../components/Card';
 import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
+
+const hackmateIcon = require('../../../../assets/icon-hackmate.png');
+const laptopIcon = require('../../../../assets/icon-laptop.png');
 
 export default function TeamCard({ team, onPress }) {
   if (!team) return null;
@@ -33,7 +36,10 @@ export default function TeamCard({ team, onPress }) {
       </View>
 
       {/* Hackathon Tag */}
-      <Text style={styles.hackathonTag}>{team.hackathon}</Text>
+      <View style={styles.hackathonRow}>
+        <Image source={laptopIcon} style={styles.laptopIcon} resizeMode="contain" />
+        <Text style={styles.hackathonTag}>{team.hackathon}</Text>
+      </View>
 
       {/* Description */}
       {team.description ? (
@@ -64,9 +70,12 @@ export default function TeamCard({ team, onPress }) {
 
       {/* Footer Row */}
       <View style={styles.bottomRow}>
-        <Text style={styles.memberCount}>
-          {memberCount} / {maxMembers} members
-        </Text>
+        <View style={styles.memberCountRow}>
+          <Image source={hackmateIcon} style={styles.memberIcon} resizeMode="contain" />
+          <Text style={styles.memberCount}>
+            {memberCount} / {maxMembers} members
+          </Text>
+        </View>
 
         <Pressable
           onPress={onPress}
@@ -110,13 +119,23 @@ const styles = StyleSheet.create({
   statusFull: {
     color: colors.mutedForeground,
   },
+  hackathonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+  },
+  laptopIcon: {
+    width: 14,
+    height: 14,
+    tintColor: colors.accent,
+  },
   hackathonTag: {
     fontSize: 12,
     fontWeight: '700',
     color: colors.accent, // #cd2f7b
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
   },
   description: {
     ...typography.body,
@@ -148,6 +167,16 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  memberCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  memberIcon: {
+    width: 16,
+    height: 16,
+    tintColor: colors.mutedForeground,
   },
   memberCount: {
     ...typography.caption,
