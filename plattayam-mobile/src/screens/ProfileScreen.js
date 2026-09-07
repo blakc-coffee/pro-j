@@ -115,7 +115,11 @@ export default function ProfileScreen() {
   return (
     <AppShell>
       <View style={styles.screen}>
-        <AppHeader title="Profile" subtitle="Your campus account & activity" />
+        <AppHeader
+          title="Profile"
+          subtitle="Your campus account & activity"
+          onBack={() => navigation.goBack()}
+        />
 
         <ScrollView contentContainerStyle={styles.body}>
           {/* SECTION 1: MY PROFILE */}

@@ -3,7 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import CabsScreen from '../features/rides/screens/CabsScreen';
 import LostFoundScreen from '../features/lost-found/screens/LostFoundScreen';
 import TeamFinderScreen from '../features/hackmate/screens/TeamFinderScreen';
-import ProfileScreen from '../screens/ProfileScreen';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 
@@ -26,7 +25,6 @@ export default function TabNavigator() {
       <Tab.Screen name="Cabs" component={CabsScreen} />
       <Tab.Screen name="Lost & Found" component={LostFoundScreen} />
       <Tab.Screen name="HackMate" component={TeamFinderScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

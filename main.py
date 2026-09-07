@@ -18,7 +18,8 @@ from model import (
     JoinRequestCreate, TeamInviteCreate, JoinRequestRespond, JoinRequestOut,
     PendingRequestWithTeamOut, MyTeamsOut,
     LostFoundItem, LostFoundMessage, ItemCreate, ItemUpdate, ItemStatusUpdate, ItemOut,
-    MessageCreate, MessageOut
+    MessageCreate, MessageOut,
+    Notification, NotificationOut, NotificationListOut
 )
 from database import get_db
 from security import create_access_token, get_current_user
@@ -205,9 +206,28 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
     except std_requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"LMS connection error: {str(e)}")
 
+
+def create_notification(db, user_id: int, title: str, message: str, notif_type: str, reference_id: str | None = None):
+    """Safely adds a notification row to the active database session."""
+    try:
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            type=notif_type,
+            reference_id=str(reference_id) if reference_id is not None else None,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        db.add(notif)
+    except Exception as e:
+        print(f"Warning: Failed to create notification: {e}")
+
+
 # =====================================================================
 # CABS API
 # =====================================================================
+
 
 @app.post("/cab-queries", response_model=CabQueryOut)
 def add_ride(new_ride: CabQueryCreate, db=Depends(get_db), current_user: Users = Depends(get_current_user)):
@@ -277,6 +297,16 @@ def delete_ride(cab_id: int, db=Depends(get_db), current_user: Users = Depends(g
     if query.user_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this ride")
     try:
+        passengers = db.query(CabRequests).filter(CabRequests.cab_id == cab_id).all()
+        for p in passengers:
+            if p.req_user_id != current_user.user_id:
+                create_notification(
+                    db,
+                    user_id=p.req_user_id,
+                    title="Ride Cancelled",
+                    message=f"The ride from {query.from_loc} to {query.to_loc} was cancelled by the host.",
+                    notif_type="cab_cancelled"
+                )
         db.query(CabRequests).filter(CabRequests.cab_id == cab_id).delete(synchronize_session=False)
         db.delete(query)
         db.commit()
@@ -335,17 +365,17 @@ def my_requests(db=Depends(get_db), current_user: Users = Depends(get_current_us
 @app.post("/cab-queries/{cab_id}/request", response_model=CabRequestOut)
 def create_request(cab_id: int, db=Depends(get_db), current_user: Users = Depends(get_current_user)):
     req_user_id = current_user.user_id
-    query = db.query(CabQuery).filter(CabQuery.cab_id == cab_id).first()
-    if query is None:
+    ride = db.query(CabQuery).filter(CabQuery.cab_id == cab_id).first()
+    if ride is None:
         raise HTTPException(status_code=404, detail="ride does not exist")
-    elif query.user_id == req_user_id:
+    elif ride.user_id == req_user_id:
         raise HTTPException(status_code=403, detail="Cannot request your own ride")
     else:
-        query = db.query(CabRequests).filter(
+        existing = db.query(CabRequests).filter(
             CabRequests.req_user_id == req_user_id,
             CabRequests.cab_id == cab_id
         ).first()
-        if query is not None:
+        if existing is not None:
             raise HTTPException(status_code=409, detail="Request Already Exists")
         req_row = CabRequests(
             cab_id=cab_id,
@@ -355,6 +385,15 @@ def create_request(cab_id: int, db=Depends(get_db), current_user: Users = Depend
         )
 
     db.add(req_row)
+    passenger_name = current_user.name or current_user.roll_no or "A passenger"
+    create_notification(
+        db,
+        user_id=ride.user_id,
+        title="New Ride Request",
+        message=f"{passenger_name} requested a seat in your ride to {ride.to_loc}",
+        notif_type="cab_request",
+        reference_id=str(cab_id)
+    )
     db.commit()
     db.refresh(req_row)
     return req_row
@@ -378,6 +417,16 @@ def update_request(request_id: int, update: CabRequestUpdate, db=Depends(get_db)
             raise HTTPException(status_code=409, detail="No seats Available")
     else:
         setattr(query, "status", update.status)
+
+    normalized_status = update.status.capitalize() if update.status else "Updated"
+    create_notification(
+        db,
+        user_id=query.req_user_id,
+        title=f"Ride Request {normalized_status}",
+        message=f"Your request to join the ride to {ride.to_loc} was {update.status.lower()}.",
+        notif_type="cab_response",
+        reference_id=str(ride.cab_id)
+    )
 
     db.commit()
     db.refresh(query)
@@ -901,6 +950,15 @@ def request_to_join_team(
         created_at=datetime.utcnow()
     )
     db.add(new_req)
+    requester_name = current_user.name or current_user.roll_no or "A candidate"
+    create_notification(
+        db,
+        user_id=team.leader_id,
+        title="New Team Request",
+        message=f"{requester_name} requested to join '{team.name}'",
+        notif_type="hack_request",
+        reference_id=str(team_id)
+    )
     db.commit()
     db.refresh(new_req)
     return serialize_request(new_req, db)
@@ -994,6 +1052,14 @@ def invite_candidate_to_team(
         existing_req.skills = skills_val
         existing_req.role = role_val
         existing_req.created_at = datetime.utcnow()
+        create_notification(
+            db,
+            user_id=target_user_id,
+            title="Team Invitation",
+            message=f"You have been invited to join team '{team.name}'",
+            notif_type="hack_invite",
+            reference_id=str(team_id)
+        )
         db.commit()
         db.refresh(existing_req)
         return serialize_request(existing_req, db)
@@ -1008,6 +1074,14 @@ def invite_candidate_to_team(
         created_at=datetime.utcnow()
     )
     db.add(new_req)
+    create_notification(
+        db,
+        user_id=target_user_id,
+        title="Team Invitation",
+        message=f"You have been invited to join team '{team.name}'",
+        notif_type="hack_invite",
+        reference_id=str(team_id)
+    )
     db.commit()
     db.refresh(new_req)
     return serialize_request(new_req, db)
@@ -1081,6 +1155,14 @@ def respond_to_join_request(
             db.add(new_m)
 
     req.status = action
+    create_notification(
+        db,
+        user_id=req.user_id,
+        title=f"Team Request {action.capitalize()}",
+        message=f"Your request to join '{team.name}' was {action}.",
+        notif_type="hack_response",
+        reference_id=str(team_id)
+    )
     db.commit()
     db.refresh(req)
     return serialize_request(req, db)
@@ -1443,6 +1525,16 @@ def create_lost_found_message(
     )
     try:
         db.add(msg)
+        if item.user_id != current_user.user_id:
+            sender_name = current_user.name or current_user.roll_no or "Someone"
+            create_notification(
+                db,
+                user_id=item.user_id,
+                title="New Item Message",
+                message=f"{sender_name} sent a message on your listing '{item.title}'",
+                notif_type="lost_message",
+                reference_id=str(item_id)
+            )
         db.commit()
         db.refresh(msg)
         return serialize_lost_found_message(msg, db)
@@ -1461,3 +1553,48 @@ def list_lost_found_messages(item_id: int, db=Depends(get_db)):
     ).order_by(LostFoundMessage.created_at.asc()).all()
 
     return [serialize_lost_found_message(msg, db) for msg in messages]
+
+
+# =====================================================================
+# NOTIFICATIONS API
+# =====================================================================
+
+@app.get("/notifications", response_model=NotificationListOut)
+def get_notifications(db=Depends(get_db), current_user: Users = Depends(get_current_user)):
+    user_id = current_user.user_id
+    unread_count = db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.is_read == False
+    ).count()
+
+    notifications = db.query(Notification).filter(
+        Notification.user_id == user_id
+    ).order_by(Notification.created_at.desc()).limit(50).all()
+
+    return NotificationListOut(
+        unread_count=unread_count,
+        notifications=notifications
+    )
+
+@app.patch("/notifications/{notification_id}/read", response_model=NotificationOut)
+def mark_notification_read(notification_id: int, db=Depends(get_db), current_user: Users = Depends(get_current_user)):
+    notif = db.query(Notification).filter(
+        Notification.id == notification_id,
+        Notification.user_id == current_user.user_id
+    ).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notif.is_read = True
+    db.commit()
+    db.refresh(notif)
+    return notif
+
+@app.post("/notifications/read-all", response_model=dict)
+def mark_all_notifications_read(db=Depends(get_db), current_user: Users = Depends(get_current_user)):
+    db.query(Notification).filter(
+        Notification.user_id == current_user.user_id,
+        Notification.is_read == False
+    ).update({Notification.is_read: True}, synchronize_session=False)
+    db.commit()
+    return {"status": "ok", "message": "All notifications marked as read"}
