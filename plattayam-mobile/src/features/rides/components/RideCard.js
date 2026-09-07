@@ -1,10 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { formatDate, formatCompactName, formatTime, isFullRide } from '../../../utils/format';
+
+const cabIcon = require('../../../../assets/icon-cab.png');
 
 export default function RideCard({ ride, footer }) {
   const navigation = useNavigation();
@@ -54,9 +56,12 @@ export default function RideCard({ ride, footer }) {
         <Text style={styles.dot}>·</Text>
         <Text style={styles.meta}>{formatTime(depTime)}</Text>
         <Text style={styles.dot}>·</Text>
-        <Text style={styles.meta}>
-          {seats} {seats === 1 ? 'seat' : 'seats'} left
-        </Text>
+        <View style={styles.seatsRow}>
+          <Image source={cabIcon} style={styles.seatsIcon} resizeMode="contain" />
+          <Text style={styles.meta}>
+            {seats} {seats === 1 ? 'seat' : 'seats'} left
+          </Text>
+        </View>
       </View>
 
       {creatorName ? (
@@ -168,5 +173,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: colors.mutedForeground,
+  },
+  seatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  seatsIcon: {
+    width: 13,
+    height: 13,
+    tintColor: colors.mutedForeground,
   },
 });

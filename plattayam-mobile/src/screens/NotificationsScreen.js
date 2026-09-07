@@ -34,12 +34,25 @@ function formatRelativeTime(dateStr) {
   return date.toLocaleDateString();
 }
 
-function getNotificationIcon(type) {
-  if (!type) return '🔔';
-  if (type.startsWith('cab_')) return '🚗';
-  if (type.startsWith('hack_')) return '💻';
-  if (type.startsWith('lost_')) return '🔍';
-  return '🔔';
+import { Image } from 'react-native';
+
+const cabIcon = require('../../assets/icon-cab.png');
+const lostFoundIcon = require('../../assets/icon-lostfound.png');
+const hackmateIcon = require('../../assets/icon-hackmate.png');
+const laptopIcon = require('../../assets/icon-laptop.png');
+const bellIcon = require('../../assets/bell-icon.png');
+
+function renderNotificationIcon(type) {
+  if (type?.startsWith('cab_')) {
+    return <Image source={cabIcon} style={styles.notifIconImage} resizeMode="contain" />;
+  }
+  if (type?.startsWith('hack_')) {
+    return <Image source={type === 'hack_invite' ? hackmateIcon : laptopIcon} style={styles.notifIconImage} resizeMode="contain" />;
+  }
+  if (type?.startsWith('lost_')) {
+    return <Image source={lostFoundIcon} style={styles.notifIconImage} resizeMode="contain" />;
+  }
+  return <Image source={bellIcon} style={styles.notifIconImage} resizeMode="contain" />;
 }
 
 export default function NotificationsScreen() {
@@ -116,7 +129,7 @@ export default function NotificationsScreen() {
                   >
                     <View style={styles.cardRow}>
                       <View style={styles.iconBox}>
-                        <Text style={styles.iconText}>{getNotificationIcon(item.type)}</Text>
+                        {renderNotificationIcon(item.type)}
                       </View>
                       <View style={styles.contentBox}>
                         <View style={styles.titleRow}>
@@ -168,15 +181,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   iconBox: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: radius.full,
-    backgroundColor: '#f7f5f2',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: {
-    fontSize: 18,
+  notifIconImage: {
+    width: 20,
+    height: 20,
+    tintColor: colors.primary,
   },
   contentBox: {
     flex: 1,
