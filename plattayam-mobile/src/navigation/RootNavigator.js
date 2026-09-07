@@ -17,6 +17,8 @@ import TeamRequestsScreen from '../features/hackmate/screens/TeamRequestsScreen'
 import ItemDetailsScreen from '../features/lost-found/screens/ItemDetailsScreen';
 import MyItemsScreen from '../features/lost-found/screens/MyItemsScreen';
 import ReportItemScreen from '../features/lost-found/screens/ReportItemScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import TabNavigator from './TabNavigator';
 
 const Stack = createNativeStackNavigator();
@@ -41,6 +43,9 @@ export default function RootNavigator() {
       {user ? (
         <>
           <Stack.Screen name="MainTabs" component={TabNavigator} />
+          {/* Top AppNavBar Destinations */}
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="PostRide" component={PostRideScreen} />
           <Stack.Screen name="RideDetails" component={RideDetailsScreen} />
           <Stack.Screen name="MyRides" component={MyRidesScreen} />

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
+import AppNavBar from '../../../components/AppNavBar';
 import AppShell from '../../../components/AppShell';
 import FormInput from '../../../components/FormInput';
 import PrimaryButton from '../../../components/PrimaryButton';
@@ -91,6 +92,7 @@ export default function LostFoundScreen() {
   return (
     <AppShell safeTop>
       <View style={styles.screen}>
+        <AppNavBar />
         <View style={styles.controls}>
           {/* Search Input */}
           <FormInput

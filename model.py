@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import date, datetime, time
 from datetime import date as dt_date, time as dt_time
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from database import Base
@@ -234,6 +234,25 @@ class LostFoundMessage(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     item = relationship("LostFoundItem", back_populates="messages")
+    user = relationship("Users", foreign_keys=[user_id])
+
+
+# =====================================================================
+# NOTIFICATIONS SQLALCHEMY MODEL
+# =====================================================================
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(150), nullable=False)
+    message = Column(Text, nullable=False)
+    type = Column(String(50), nullable=False)  # 'cab_request', 'cab_response', 'cab_cancelled', 'hack_invite', 'hack_request', 'hack_response', 'lost_message'
+    reference_id = Column(String(50), nullable=True)  # e.g. cab_id, team_id, item_id
+    is_read = Column(Boolean, default=False, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
     user = relationship("Users", foreign_keys=[user_id])
 
 
@@ -533,3 +552,18 @@ class ItemOut(BaseModel):
     user_roll_no: str | None = None
     messages: list[MessageOut] = []
     model_config = {"from_attributes": True}
+
+class NotificationOut(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    type: str
+    reference_id: str | None = None
+    is_read: bool
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+class NotificationListOut(BaseModel):
+    unread_count: int
+    notifications: list[NotificationOut]
