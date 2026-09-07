@@ -1,39 +1,42 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useEffect, useRef } from 'react';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { colors } from '../constants/colors';
 import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { useAuth } from '../context/AuthContext';
-import { listNotifications } from '../services/notifications';
+import { useNotifications } from '../context/NotificationContext';
 
 const bellIconSource = require('../../assets/bell-icon.png');
 
 export default function AppNavBar() {
   const navigation = useNavigation();
   const { user } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount } = useNotifications();
 
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const res = await listNotifications();
-      if (res && typeof res.unread_count === 'number') {
-        setUnreadCount(res.unread_count);
-      }
-    } catch {}
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchUnreadCount();
-    }, [fetchUnreadCount])
-  );
+  // Pulse animation when unreadCount increases
+  const badgeScale = useRef(new Animated.Value(1)).current;
+  const prevCountRef = useRef(unreadCount);
 
   useEffect(() => {
-    const timer = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(timer);
-  }, [fetchUnreadCount]);
+    if (unreadCount > prevCountRef.current && unreadCount > 0) {
+      Animated.sequence([
+        Animated.timing(badgeScale, {
+          toValue: 1.3,
+          duration: 160,
+          useNativeDriver: true,
+        }),
+        Animated.spring(badgeScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevCountRef.current = unreadCount;
+  }, [unreadCount, badgeScale]);
 
   const initials = (() => {
     const name = (user?.name || user?.roll_no || '').trim();
@@ -60,18 +63,26 @@ export default function AppNavBar() {
           accessibilityLabel={`Notifications, ${unreadCount} unread`}
           hitSlop={8}
         >
-          <Image
-            source={bellIconSource}
-            style={styles.bellGraphic}
-            resizeMode="contain"
-          />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {unreadCount > 9 ? '9+' : String(unreadCount)}
-              </Text>
-            </View>
-          )}
+          <View style={styles.bellWrapper}>
+            <Image
+              source={bellIconSource}
+              style={styles.bellGraphic}
+              resizeMode="contain"
+            />
+            {unreadCount > 0 && (
+              <Animated.View
+                style={[
+                  styles.badge,
+                  unreadCount > 9 && styles.badgeWide,
+                  { transform: [{ scale: badgeScale }] },
+                ]}
+              >
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : String(unreadCount)}
+                </Text>
+              </Animated.View>
+            )}
+          </View>
         </Pressable>
 
         {/* Profile Avatar Button */}
@@ -117,7 +128,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   iconButton: {
-    position: 'relative',
     width: 38,
     height: 38,
     borderRadius: radius.pill,
@@ -126,29 +136,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 0,
   },
+  bellWrapper: {
+    position: 'relative',
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   bellGraphic: {
     width: 24,
     height: 24,
-    tintColor: colors.foreground || '#1e293b',
+    tintColor: '#334155',
   },
   badge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: colors.destructive || '#dc2626',
-    borderRadius: radius.pill,
-    minWidth: 16,
-    height: 16,
-    paddingHorizontal: 4,
+    top: -5,
+    right: -7,
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: '#ec003f',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0,
+    zIndex: 10,
+    shadowColor: '#ec003f',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  badgeWide: {
+    width: 'auto',
+    minWidth: 17,
+    paddingHorizontal: 4,
+    borderRadius: 8.5,
   },
   badgeText: {
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '700',
     lineHeight: 12,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   avatarButton: {
     width: 38,

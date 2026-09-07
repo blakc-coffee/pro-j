@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import {
   FlatList,
   Pressable,
@@ -16,11 +16,7 @@ import ScreenState from '../components/ScreenState';
 import { colors } from '../constants/colors';
 import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
-import {
-  listNotifications,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
-} from '../services/notifications';
+import { useNotifications } from '../context/NotificationContext';
 
 function formatRelativeTime(dateStr) {
   if (!dateStr) return '';
@@ -48,44 +44,27 @@ function getNotificationIcon(type) {
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    setError('');
-    try {
-      const res = await listNotifications();
-      setNotifications(res?.notifications || []);
-    } catch (err) {
-      setError(err.message || 'Failed to load notifications.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    refreshing,
+    error,
+    refresh,
+    markAsRead,
+    markAllAsRead,
+    fetchNotifications,
+  } = useNotifications();
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      fetchNotifications(true);
+    }, [fetchNotifications])
   );
-
-  const handleMarkAllRead = async () => {
-    try {
-      await markAllNotificationsAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    } catch {}
-  };
 
   const handleNotificationPress = async (item) => {
     if (!item.is_read) {
-      markNotificationAsRead(item.id).catch(() => {});
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
-      );
+      markAsRead(item.id);
     }
 
     if (!item.reference_id) return;
@@ -101,8 +80,6 @@ export default function NotificationsScreen() {
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
-
   return (
     <AppShell>
       <View style={styles.screen}>
@@ -110,7 +87,7 @@ export default function NotificationsScreen() {
           title="Notifications"
           onBack={() => navigation.goBack()}
           actionLabel={unreadCount > 0 ? 'Mark all read' : undefined}
-          onAction={unreadCount > 0 ? handleMarkAllRead : undefined}
+          onAction={unreadCount > 0 ? markAllAsRead : undefined}
         />
 
         <ScreenState
