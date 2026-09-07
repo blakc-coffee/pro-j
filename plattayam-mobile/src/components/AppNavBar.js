@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import { colors } from '../constants/colors';
@@ -7,6 +7,8 @@ import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { useAuth } from '../context/AuthContext';
 import { listNotifications } from '../services/notifications';
+
+const bellIconSource = require('../../assets/bell-icon.png');
 
 export default function AppNavBar() {
   const navigation = useNavigation();
@@ -58,7 +60,11 @@ export default function AppNavBar() {
           accessibilityLabel={`Notifications, ${unreadCount} unread`}
           hitSlop={8}
         >
-          <Text style={styles.bellIcon}>🔔</Text>
+          <Image
+            source={bellIconSource}
+            style={styles.bellGraphic}
+            resizeMode="contain"
+          />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
@@ -90,9 +96,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     minHeight: 48,
   },
   left: {
@@ -115,29 +120,29 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 38,
     height: 38,
-    borderRadius: radius.full,
-    backgroundColor: '#f7f5f2',
+    borderRadius: radius.pill,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 0,
   },
-  bellIcon: {
-    fontSize: 18,
+  bellGraphic: {
+    width: 24,
+    height: 24,
+    tintColor: colors.foreground || '#1e293b',
   },
   badge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
+    top: 2,
+    right: 2,
     backgroundColor: colors.destructive || '#dc2626',
-    borderRadius: radius.full,
-    minWidth: 18,
-    height: 18,
+    borderRadius: radius.pill,
+    minWidth: 16,
+    height: 16,
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.card,
+    borderWidth: 0,
   },
   badgeText: {
     color: '#ffffff',
@@ -148,7 +153,7 @@ const styles = StyleSheet.create({
   avatarButton: {
     width: 38,
     height: 38,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
