@@ -22,7 +22,7 @@ from model import (
     Notification, NotificationOut, NotificationListOut
 )
 from database import get_db
-from security import create_access_token, get_current_user
+from security import create_access_token, get_current_user, get_current_user_optional
 
 app = FastAPI()
 
@@ -474,7 +474,7 @@ def format_list(val) -> str | None:
     s = str(val).strip()
     return s if s else None
 
-def serialize_team(team: HackFindTeam, db) -> TeamOut:
+def serialize_team(team: HackFindTeam, db, current_user: Users | None = None) -> TeamOut:
     members = db.query(HackFindTeamMember).filter(HackFindTeamMember.team_id == team.id).all()
     member_outs = []
     for m in members:
@@ -499,6 +499,24 @@ def serialize_team(team: HackFindTeam, db) -> TeamOut:
     tech_list = parse_list(team.tech_stack)
     created_str = team.created_at.isoformat() if team.created_at else datetime.utcnow().isoformat()
 
+    has_pending_req = False
+    my_req_status = None
+    my_req_type = None
+    my_req_id = None
+    my_req_role = None
+
+    if current_user:
+        my_req = db.query(HackFindTeamRequest).filter(
+            HackFindTeamRequest.team_id == team.id,
+            HackFindTeamRequest.user_id == current_user.user_id
+        ).order_by(HackFindTeamRequest.created_at.desc()).first()
+        if my_req:
+            has_pending_req = (my_req.status == "pending")
+            my_req_status = my_req.status
+            my_req_type = getattr(my_req, "type", "request") or "request"
+            my_req_id = str(my_req.id)
+            my_req_role = my_req.role
+
     return TeamOut(
         id=str(team.id),
         name=team.name,
@@ -519,7 +537,17 @@ def serialize_team(team: HackFindTeam, db) -> TeamOut:
         contact=team.contact,
         created_at=created_str,
         createdAt=created_str,
-        members=member_outs
+        members=member_outs,
+        has_pending_request=has_pending_req,
+        hasPendingRequest=has_pending_req,
+        my_request_status=my_req_status,
+        myRequestStatus=my_req_status,
+        my_request_type=my_req_type,
+        myRequestType=my_req_type,
+        my_request_id=my_req_id,
+        myRequestId=my_req_id,
+        my_request_role=my_req_role,
+        myRequestRole=my_req_role,
     )
 
 def normalize_availability_status(val: str | None) -> str:
@@ -566,6 +594,7 @@ def serialize_request(req: HackFindTeamRequest, db) -> JoinRequestOut:
     roll_no = user.roll_no if user else None
     skills_list = parse_list(req.skills)
     created_str = req.created_at.isoformat() if req.created_at else datetime.utcnow().isoformat()
+    req_type = getattr(req, "type", "request") or "request"
 
     return JoinRequestOut(
         id=str(req.id),
@@ -580,6 +609,7 @@ def serialize_request(req: HackFindTeamRequest, db) -> JoinRequestOut:
         skills=skills_list,
         notes=req.notes,
         status=req.status or "pending",
+        type=req_type,
         created_at=created_str,
         createdAt=created_str
     )
@@ -615,11 +645,15 @@ def list_hackfind_teams(
     return serialized
 
 @app.get("/hackfind/teams/{team_id}", response_model=TeamOut)
-def get_hackfind_team(team_id: int, db=Depends(get_db)):
+def get_hackfind_team(
+    team_id: int,
+    db=Depends(get_db),
+    current_user: Users | None = Depends(get_current_user_optional)
+):
     team = db.query(HackFindTeam).filter(HackFindTeam.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
-    return serialize_team(team, db)
+    return serialize_team(team, db, current_user=current_user)
 
 @app.post("/hackfind/teams", response_model=TeamOut)
 def create_hackfind_team(
@@ -871,7 +905,8 @@ def get_my_hackfind_teams(
         team = db.query(HackFindTeam).filter(HackFindTeam.id == req.team_id).first()
         if team:
             req_out = serialize_request(req, db)
-            team_out = serialize_team(team, db)
+            team_out = serialize_team(team, db, current_user=current_user)
+            req_type = getattr(req, "type", "request") or "request"
             pending_list.append(PendingRequestWithTeamOut(
                 request=req_out,
                 team=team_out,
@@ -884,6 +919,7 @@ def get_my_hackfind_teams(
                 teamHackathon=team.hackathon,
                 role=req.role or "Applicant",
                 status=req.status or "pending",
+                type=req_type,
                 notes=req.notes,
                 created_at=req_out.created_at,
                 createdAt=req_out.createdAt
@@ -931,6 +967,7 @@ def request_to_join_team(
         if existing_req.status == "pending":
             raise HTTPException(status_code=409, detail="You already have a pending request for this team")
         existing_req.status = "pending"
+        existing_req.type = "request"
         existing_req.notes = (payload.notes or "").strip() or None
         existing_req.skills = format_list(payload.skills)
         existing_req.role = (payload.role or "Team Member").strip()
@@ -947,6 +984,7 @@ def request_to_join_team(
         skills=skills_val,
         notes=(payload.notes or "").strip() or None,
         status="pending",
+        type="request",
         created_at=datetime.utcnow()
     )
     db.add(new_req)
@@ -1040,14 +1078,16 @@ def invite_candidate_to_team(
         HackFindTeamRequest.user_id == target_user_id
     ).first()
 
+    inviter_name = current_user.name or current_user.roll_no or "Team leader"
     skills_val = format_list(candidate_profile.skills if candidate_profile else None)
     role_val = (payload.role or (candidate_profile.role if candidate_profile else "Team Member")).strip()
-    notes_val = (payload.notes or f"Invited by {current_user.name}").strip()
+    notes_val = (payload.notes or f"Invited by {inviter_name}").strip()
 
     if existing_req:
         if existing_req.status == "pending":
             raise HTTPException(status_code=409, detail="An invitation or request is already pending for this candidate")
         existing_req.status = "pending"
+        existing_req.type = "invite"
         existing_req.notes = notes_val
         existing_req.skills = skills_val
         existing_req.role = role_val
@@ -1056,7 +1096,7 @@ def invite_candidate_to_team(
             db,
             user_id=target_user_id,
             title="Team Invitation",
-            message=f"You have been invited to join team '{team.name}'",
+            message=f"{inviter_name} invited you to join team '{team.name}'",
             notif_type="hack_invite",
             reference_id=str(team_id)
         )
@@ -1071,6 +1111,7 @@ def invite_candidate_to_team(
         skills=skills_val,
         notes=notes_val,
         status="pending",
+        type="invite",
         created_at=datetime.utcnow()
     )
     db.add(new_req)
@@ -1078,7 +1119,7 @@ def invite_candidate_to_team(
         db,
         user_id=target_user_id,
         title="Team Invitation",
-        message=f"You have been invited to join team '{team.name}'",
+        message=f"{inviter_name} invited you to join team '{team.name}'",
         notif_type="hack_invite",
         reference_id=str(team_id)
     )
@@ -1099,10 +1140,30 @@ def list_team_join_requests(
         raise HTTPException(status_code=403, detail="Only the team leader can view join requests")
 
     requests = db.query(HackFindTeamRequest).filter(
-        HackFindTeamRequest.team_id == team_id
+        HackFindTeamRequest.team_id == team_id,
+        HackFindTeamRequest.type == "request"
     ).order_by(HackFindTeamRequest.created_at.desc()).all()
 
     return [serialize_request(r, db) for r in requests]
+
+@app.get("/hackfind/teams/{team_id}/invitations", response_model=list[JoinRequestOut])
+def list_team_invitations(
+    team_id: int,
+    db=Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    team = db.query(HackFindTeam).filter(HackFindTeam.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team.leader_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Only the team leader can view invitations")
+
+    invitations = db.query(HackFindTeamRequest).filter(
+        HackFindTeamRequest.team_id == team_id,
+        HackFindTeamRequest.type == "invite"
+    ).order_by(HackFindTeamRequest.created_at.desc()).all()
+
+    return [serialize_request(i, db) for i in invitations]
 
 @app.post("/hackfind/teams/{team_id}/requests/{req_id}/respond", response_model=JoinRequestOut)
 def respond_to_join_request(
@@ -1115,8 +1176,6 @@ def respond_to_join_request(
     team = db.query(HackFindTeam).filter(HackFindTeam.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
-    if team.leader_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="Only the team leader can respond to requests")
 
     req = db.query(HackFindTeamRequest).filter(
         HackFindTeamRequest.id == req_id,
@@ -1124,6 +1183,18 @@ def respond_to_join_request(
     ).first()
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    req_type = getattr(req, "type", "request") or "request"
+    is_invite = (req_type == "invite")
+
+    if is_invite:
+        # Candidate responds to leader's invitation
+        if req.user_id != current_user.user_id:
+            raise HTTPException(status_code=403, detail="Only the invited candidate can respond to this invitation")
+    else:
+        # Leader responds to candidate's join request
+        if team.leader_id != current_user.user_id:
+            raise HTTPException(status_code=403, detail="Only the team leader can respond to requests")
 
     raw_action = payload.action or payload.status
     if not raw_action:
@@ -1155,14 +1226,31 @@ def respond_to_join_request(
             db.add(new_m)
 
     req.status = action
-    create_notification(
-        db,
-        user_id=req.user_id,
-        title=f"Team Request {action.capitalize()}",
-        message=f"Your request to join '{team.name}' was {action}.",
-        notif_type="hack_response",
-        reference_id=str(team_id)
-    )
+
+    if is_invite:
+        # Notify team leader of candidate's decision
+        candidate_name = current_user.name or current_user.roll_no or "Candidate"
+        decision_verb = "accepted" if action == "accepted" else "declined"
+        title_text = "Invitation Accepted" if action == "accepted" else "Invitation Declined"
+        create_notification(
+            db,
+            user_id=team.leader_id,
+            title=title_text,
+            message=f"{candidate_name} {decision_verb} your invitation to join '{team.name}'.",
+            notif_type="hack_response",
+            reference_id=str(team_id)
+        )
+    else:
+        # Notify applicant of leader's decision
+        create_notification(
+            db,
+            user_id=req.user_id,
+            title=f"Team Request {action.capitalize()}",
+            message=f"Your request to join '{team.name}' was {action}.",
+            notif_type="hack_response",
+            reference_id=str(team_id)
+        )
+
     db.commit()
     db.refresh(req)
     return serialize_request(req, db)

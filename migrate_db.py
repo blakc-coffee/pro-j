@@ -61,7 +61,18 @@ def run_migration():
                 else:
                     print("[OK] Column 'hackathon' is already nullable.")
 
-    # 4. Final verification of tables
+    # 4. Check hackfind_team_requests type column
+    if "hackfind_team_requests" in updated_tables:
+        req_cols = [c["name"] for c in inspector.get_columns("hackfind_team_requests")]
+        if "type" not in req_cols:
+            print("Adding column 'type' (VARCHAR(20) DEFAULT 'request') to 'hackfind_team_requests'...")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE hackfind_team_requests ADD COLUMN type VARCHAR(20) NOT NULL DEFAULT 'request';"))
+            print("[OK] Column 'type' added to 'hackfind_team_requests'.")
+        else:
+            print("[OK] Column 'type' already exists in 'hackfind_team_requests'.")
+
+    # 5. Final verification of tables
     final_inspector = inspect(engine)
     final_cols = final_inspector.get_columns("lost_found_items")
     print(f"\nFinal lost_found_items columns and types:")

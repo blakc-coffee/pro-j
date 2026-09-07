@@ -85,9 +85,42 @@ export default function TeamDetailsScreen() {
     team &&
     Array.isArray(team.members) &&
     team.members.some((m) => String(m.id || m.user_id) === currentUserId);
+  const myReqType = team?.myRequestType || team?.my_request_type || 'request';
+  const myReqId = team?.myRequestId || team?.my_request_id;
+  const myReqStatus = team?.myRequestStatus || team?.my_request_status;
+  const isInvited = team && !isLeader && !isMember && myReqType === 'invite' && myReqStatus === 'pending';
   const hasPendingRequest =
-    team && !isLeader && !isMember && (team.hasPendingRequest || team.myRequestStatus === 'pending');
+    team && !isLeader && !isMember && !isInvited && (team.hasPendingRequest || myReqStatus === 'pending');
   const isFull = team && (team.status === 'full' || (team.members?.length || 1) >= (team.maxMembers || 4));
+
+  // --- CANDIDATE INVITE ACTIONS ---
+  const handleAcceptInvite = async () => {
+    if (!myReqId) return;
+    setActionBusy(true);
+    try {
+      await respondToTeamRequest(teamId, myReqId, 'accepted');
+      Alert.alert('Success', `You have joined ${team.name}!`);
+      loadData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to accept invitation.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleDeclineInvite = async () => {
+    if (!myReqId) return;
+    setActionBusy(true);
+    try {
+      await respondToTeamRequest(teamId, myReqId, 'rejected');
+      Alert.alert('Invitation Declined', `You declined the invitation to join ${team.name}.`);
+      loadData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to decline invitation.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   // --- LEADER ACTIONS ---
   const handleAcceptRequest = async (reqId) => {
@@ -372,6 +405,32 @@ export default function TeamDetailsScreen() {
                     style={styles.actionBtn}
                   />
                 </View>
+              ) : isInvited ? (
+                /* Candidate with Pending Invitation from Leader */
+                <Card padding="lg" style={styles.card}>
+                  <Text style={styles.pendingNoticeTitle}>Team Invitation</Text>
+                  <Text style={styles.pendingNoticeBody}>
+                    {team.leaderName || team.leader_name || 'The team leader'} invited you to join this team as {team.myRequestRole || team.my_request_role || 'Member'}.
+                  </Text>
+                  <View style={styles.inviteBtnRow}>
+                    <PrimaryButton
+                      label="Accept Invite"
+                      tone="primary"
+                      loading={actionBusy}
+                      loadingLabel="Joining..."
+                      onPress={handleAcceptInvite}
+                      style={styles.inviteActionBtn}
+                    />
+                    <PrimaryButton
+                      label="Decline"
+                      tone="destructive"
+                      loading={actionBusy}
+                      loadingLabel="Declining..."
+                      onPress={handleDeclineInvite}
+                      style={styles.inviteActionBtn}
+                    />
+                  </View>
+                </Card>
               ) : hasPendingRequest ? (
                 /* Candidate with Pending Request */
                 <Card padding="lg" style={styles.card}>
@@ -568,6 +627,15 @@ const styles = StyleSheet.create({
     color: colors.warning,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+  },
+  inviteBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  inviteActionBtn: {
+    flex: 1,
   },
   joinHeading: {
     ...typography.heading,

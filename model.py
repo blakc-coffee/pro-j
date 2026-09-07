@@ -175,6 +175,7 @@ class HackFindTeamRequest(Base):
     skills = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="pending")  # 'pending', 'accepted', 'rejected'
+    type = Column(String(20), nullable=False, default="request")  # 'request' (candidate applied) vs 'invite' (leader invited)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     team = relationship("HackFindTeam", back_populates="requests")
@@ -395,6 +396,16 @@ class TeamOut(BaseModel):
     created_at: str
     createdAt: str
     members: list[TeamMemberOut] = []
+    has_pending_request: bool = False
+    hasPendingRequest: bool = False
+    my_request_status: str | None = None
+    myRequestStatus: str | None = None
+    my_request_type: str | None = None
+    myRequestType: str | None = None
+    my_request_id: str | None = None
+    myRequestId: str | None = None
+    my_request_role: str | None = None
+    myRequestRole: str | None = None
 
 class PersonCreate(BaseModel):
     role: str
@@ -470,6 +481,7 @@ class JoinRequestOut(BaseModel):
     skills: list[str] = []
     notes: str | None = None
     status: str = "pending"
+    type: str = "request"
     created_at: str
     createdAt: str
 
@@ -485,6 +497,7 @@ class PendingRequestWithTeamOut(BaseModel):
     teamHackathon: str | None = None
     role: str = "Applicant"
     status: str = "pending"
+    type: str = "request"
     notes: str | None = None
     created_at: str | None = None
     createdAt: str | None = None
