@@ -20,6 +20,7 @@ import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { useAuth } from '../../../context/AuthContext';
+import { useNotifications } from '../../../context/NotificationContext';
 import {
   applyToTeam,
   deleteTeam,
@@ -36,6 +37,7 @@ export default function TeamDetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { user } = useAuth();
+  const { fetchNotifications } = useNotifications();
   const currentUserId = String(user?.user_id ?? user?.id ?? '');
 
   const teamId = route.params?.teamId;
@@ -100,6 +102,7 @@ export default function TeamDetailsScreen() {
     try {
       await respondToTeamRequest(teamId, myReqId, 'accepted');
       Alert.alert('Success', `You have joined ${team.name}!`);
+      fetchNotifications(true);
       loadData();
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to accept invitation.');
@@ -114,6 +117,7 @@ export default function TeamDetailsScreen() {
     try {
       await respondToTeamRequest(teamId, myReqId, 'rejected');
       Alert.alert('Invitation Declined', `You declined the invitation to join ${team.name}.`);
+      fetchNotifications(true);
       loadData();
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to decline invitation.');
