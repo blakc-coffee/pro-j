@@ -192,6 +192,7 @@ export default function MyTeamsScreen() {
                 {pending.map((item) => {
                   const rawStatus = item.status || item.request?.status;
                   const status = (rawStatus ? String(rawStatus) : 'pending').toLowerCase();
+                  const isInvite = item.type === 'invite' || item.request?.type === 'invite';
                   const teamName = item.teamName || item.team?.name || 'Team';
                   const teamHackathon =
                     item.teamHackathon ||
@@ -220,17 +221,21 @@ export default function MyTeamsScreen() {
                               ? styles.statusAccepted
                               : status === 'rejected'
                               ? styles.statusRejected
+                              : isInvite
+                              ? styles.statusLead
                               : styles.statusPending,
                           ]}
                         >
-                          {status.toUpperCase()}
+                          {isInvite && status === 'pending' ? 'INVITATION' : status.toUpperCase()}
                         </Text>
                       </View>
 
                       {teamHackathon ? (
                         <Text style={styles.hackathonTag}>{teamHackathon.toUpperCase()}</Text>
                       ) : null}
-                      <Text style={styles.roleApplied}>Applied as: {roleApplied}</Text>
+                      <Text style={styles.roleApplied}>
+                        {isInvite ? `Invited as: ${roleApplied}` : `Applied as: ${roleApplied}`}
+                      </Text>
 
                       <View style={styles.btnRow}>
                         <Pressable
@@ -242,7 +247,9 @@ export default function MyTeamsScreen() {
                           style={styles.viewBtn}
                           accessibilityRole="button"
                         >
-                          <Text style={styles.viewBtnText}>View Team</Text>
+                          <Text style={styles.viewBtnText}>
+                            {isInvite && status === 'pending' ? 'View & Respond' : 'View Team'}
+                          </Text>
                         </Pressable>
                       </View>
                     </Card>

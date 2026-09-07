@@ -499,5 +499,90 @@ def test_end_to_end_accept_flow_with_frontend_payload():
     team_final = client.get(f"/hackfind/teams/{team_id}").json()
     assert len(team_final["members"]) == 2  # Member count unchanged
 
+def test_invite_candidate_flow_and_candidate_acceptance():
+    headers_u5 = get_auth_headers(5)  # Leader (Dharun S)
+    headers_u4 = get_auth_headers(4)  # Candidate (Rohit Verma)
+
+    # 1. Create team by User 5
+    team_res = client.post(
+        "/hackfind/teams",
+        json={"name": "Code Crafters", "hackathon": "Smart India Hackathon", "max_members": 3},
+        headers=headers_u5
+    )
+    assert team_res.status_code == 200
+    team_id = int(team_res.json()["id"])
+
+    # 2. User 4 has candidate profile
+    client.post(
+        "/hackfind/profiles",
+        json={"role": "UI Designer", "skills": ["Figma", "React"], "contact": "rohit@iiitk.ac.in", "status": "open"},
+        headers=headers_u4
+    )
+
+    # 3. User 5 invites User 4
+    invite_res = client.post(
+        f"/hackfind/teams/{team_id}/invites",
+        json={"candidate_id": 4, "role": "Frontend Designer"},
+        headers=headers_u5
+    )
+    assert invite_res.status_code == 200
+    invite_data = invite_res.json()
+    assert invite_data["type"] == "invite"
+    assert invite_data["status"] == "pending"
+    req_id = int(invite_data["id"])
+
+    # 4. User 4 gets notification stating Dharun S invited them
+    notif_res = client.get("/notifications", headers=headers_u4)
+    assert notif_res.status_code == 200
+    notifs = notif_res.json()["notifications"]
+    assert len(notifs) >= 1
+    assert notifs[0]["type"] == "hack_invite"
+    assert "Dharun S invited you to join team 'Code Crafters'" in notifs[0]["message"]
+
+    # 5. Leader does NOT see this as an incoming join request
+    leader_reqs = client.get(f"/hackfind/teams/{team_id}/requests", headers=headers_u5).json()
+    assert len(leader_reqs) == 0  # Crucial rule change: No backward requests!
+
+    # 6. Leader can see it under invitations
+    leader_invites = client.get(f"/hackfind/teams/{team_id}/invitations", headers=headers_u5).json()
+    assert len(leader_invites) == 1
+    assert leader_invites[0]["type"] == "invite"
+
+    # 7. Leader cannot accept their own invite for the candidate
+    leader_try_accept = client.post(
+        f"/hackfind/teams/{team_id}/requests/{req_id}/respond",
+        json={"action": "accepted"},
+        headers=headers_u5
+    )
+    assert leader_try_accept.status_code == 403
+    assert "Only the invited candidate" in leader_try_accept.json()["detail"]
+
+    # 8. Candidate views team and sees invite status
+    team_for_candidate = client.get(f"/hackfind/teams/{team_id}", headers=headers_u4).json()
+    assert team_for_candidate["myRequestType"] == "invite"
+    assert team_for_candidate["myRequestStatus"] == "pending"
+    assert team_for_candidate["hasPendingRequest"] is True
+
+    # 9. Candidate accepts invite
+    candidate_accept = client.post(
+        f"/hackfind/teams/{team_id}/requests/{req_id}/respond",
+        json={"action": "accepted"},
+        headers=headers_u4
+    )
+    assert candidate_accept.status_code == 200
+    assert candidate_accept.json()["status"] == "accepted"
+
+    # 10. Candidate is now a team member
+    team_after = client.get(f"/hackfind/teams/{team_id}").json()
+    member_ids = [m["id"] for m in team_after["members"]]
+    assert "4" in member_ids
+    assert len(team_after["members"]) == 2
+
+    # 11. Leader receives notification that candidate accepted
+    leader_notifs = client.get("/notifications", headers=headers_u5).json()["notifications"]
+    assert len(leader_notifs) >= 1
+    assert "Rohit Verma accepted your invitation" in leader_notifs[0]["message"]
+
+
 
 
