@@ -1,7 +1,11 @@
 from datetime import datetime, timedelta
 import os
+import logging
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import requests as std_requests
@@ -24,7 +28,39 @@ from model import (
 from database import get_db
 from security import create_access_token, get_current_user, get_current_user_optional
 
-app = FastAPI()
+logger = logging.getLogger("plattayam.api")
+
+# Environment gating for Swagger / OpenAPI documentation
+is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+app = FastAPI(
+    title="Plattayam Backend API",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
+)
+
+# Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    return response
+
+# Global Exception Handler to prevent stack trace / internal detail leakage
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, (HTTPException, StarletteHTTPException, RequestValidationError)):
+        raise exc
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected server error occurred. Please try again later."}
+    )
 
 # Configure allowed origins for CORS
 # Supports local development (Expo Web :8081/:19006, Vite/React :3000, FastAPI :8000),

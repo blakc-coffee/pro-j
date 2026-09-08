@@ -199,3 +199,28 @@ def test_seat_leak_and_concurrency_lifecycle():
     ride_data_restored_again = client.get(f"/cab-queries/{ride_id}").json()
     assert ride_data_restored_again["seats_avbl"] == 1
     assert ride_data_restored_again["status"] == "open"
+
+def test_security_headers():
+    """Verify that required HTTP security headers are present on responses."""
+    res = client.get("/")
+    assert res.status_code == 200
+    assert res.headers.get("X-Content-Type-Options") == "nosniff"
+    assert res.headers.get("X-Frame-Options") == "DENY"
+    assert "max-age=31536000" in res.headers.get("Strict-Transport-Security", "")
+    assert res.headers.get("Content-Security-Policy") == "default-src 'self'"
+
+def test_unhandled_exception_masked():
+    """Verify that unexpected server exceptions return a safe generic 500 without stack trace leakage."""
+    def crash_route():
+        raise RuntimeError("Secret internal database crash with stack trace /home/internal/db.py")
+
+    # Temporarily mount a crashing route
+    app.add_api_route("/test-crash", crash_route, methods=["GET"])
+
+    safe_client = TestClient(app, raise_server_exceptions=False)
+    res = safe_client.get("/test-crash")
+    assert res.status_code == 500
+    body = res.json()
+    assert body["detail"] == "An unexpected server error occurred. Please try again later."
+    assert "RuntimeError" not in res.text
+    assert "/home/internal" not in res.text
