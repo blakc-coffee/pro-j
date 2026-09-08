@@ -1,33 +1,38 @@
 from __future__ import annotations
 from datetime import date, datetime, time
 from datetime import date as dt_date, time as dt_time
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from database import Base
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Users(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True)
-    roll_no = Column(String(11), unique=True, nullable=True)
+    roll_no = Column(String(64), unique=True, nullable=True)
     email_id = Column(String(100), unique=True, nullable=True)
     name = Column(String(50), nullable=False)
     gender = Column(String(10), nullable=True)
     phone_no = Column(String(15), nullable=True)
     google_sub = Column(String(255), unique=True, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class CabQuery(Base):
     __tablename__ = "cab_query"
+    __table_args__ = (
+        CheckConstraint("seats_avbl >= 0", name="check_seats_non_negative"),
+    )
 
     cab_id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     travel_date = Column(Date, nullable=False)
     dep_time = Column(Time, nullable=False)
-    from_loc = Column(String(50), nullable=False)
-    to_loc = Column(String(50), nullable=False)
+    from_loc = Column(String(100), nullable=False)
+    to_loc = Column(String(100), nullable=False)
     status = Column(String(10), nullable=False)
     seats_avbl = Column(Integer, nullable=False)
 
@@ -283,6 +288,8 @@ class UserPublicOut(BaseModel):
     phone_no: str | None = None
     email_id: str | None = None
     gender: str | None = None
+    is_active: bool = True
+    created_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 class UserContactUpdate(BaseModel):
@@ -305,23 +312,26 @@ class CabQueryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 class CabQueryCreate(BaseModel):
-    from_loc: str
-    to_loc: str
+    from_loc: str = Field(..., min_length=2, max_length=100)
+    to_loc: str = Field(..., min_length=2, max_length=100)
     travel_date: dt_date | None = None
     date: dt_date | None = None
     dep_time: dt_time | None = None
     time: dt_time | None = None
-    seats_avbl: int | None = None
-    seats: int | None = None
+    seats_avbl: int | None = Field(default=None, ge=1, le=10)
+    seats: int | None = Field(default=None, ge=1, le=10)
     price: float | None = None
     notes: str | None = None
 
 class CabQueryUpdate(BaseModel):
-    travel_date: date | None = None
-    from_loc: str | None = None
-    to_loc: str | None = None
-    dep_time: time | None = None
-    seats_avbl: int | None = None
+    travel_date: dt_date | None = None
+    date: dt_date | None = None
+    from_loc: str | None = Field(default=None, min_length=2, max_length=100)
+    to_loc: str | None = Field(default=None, min_length=2, max_length=100)
+    dep_time: dt_time | None = None
+    time: dt_time | None = None
+    seats_avbl: int | None = Field(default=None, ge=0, le=10)
+    status: str | None = None
 
 
 class CabRequestOut(BaseModel):

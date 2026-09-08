@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import requests as std_requests
@@ -76,6 +76,15 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
         email = idinfo.get('email')
         name = idinfo.get('name', 'Google User')
 
+        # Configurable domain restriction
+        restrict_domain = os.getenv("RESTRICT_DOMAIN", "false").strip().lower() in ("true", "1")
+        allowed_domain = os.getenv("ALLOWED_EMAIL_DOMAIN", "iiitkottayam.ac.in").strip().lower()
+        if restrict_domain:
+            domain = email.split("@")[-1].lower() if email and "@" in email else ""
+            hd = idinfo.get("hd", "").lower()
+            if domain != allowed_domain and hd != allowed_domain:
+                raise HTTPException(status_code=403, detail=f"Registration restricted to @{allowed_domain} accounts")
+
         user = db.query(Users).filter(Users.google_sub == google_sub).first()
 
         if not user:
@@ -90,7 +99,7 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
             if not email:
                 raise HTTPException(status_code=400, detail="Google token does not contain an email")
             
-            inferred_roll_no = email.split('@')[0] if email else None
+            inferred_roll_no = (email.split('@')[0])[:64] if email else None
             
             user = Users(
                 email_id=email,
@@ -98,7 +107,9 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
                 google_sub=google_sub,
                 roll_no=inferred_roll_no,
                 gender=None,
-                phone_no=None
+                phone_no=None,
+                is_active=True,
+                created_at=datetime.utcnow()
             )
             db.add(user)
             db.commit()
@@ -315,14 +326,19 @@ def delete_ride(cab_id: int, db=Depends(get_db), current_user: Users = Depends(g
         raise HTTPException(status_code=500, detail=f"Failed to cancel ride: {str(e)}")
 
 @app.get("/cab-queries", response_model=list[CabQueryOut])
-def search_location(loc: str = None, db=Depends(get_db)):
+def search_location(
+    loc: str = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db=Depends(get_db)
+):
     query = db.query(CabQuery)
     if loc is not None:
         query = query.filter(or_(
             CabQuery.from_loc.ilike(f"%{loc}%"),
             CabQuery.to_loc.ilike(f"%{loc}%")
         ))
-    return query.order_by(CabQuery.cab_id.desc()).all()
+    return query.order_by(CabQuery.cab_id.desc()).offset(offset).limit(limit).all()
 
 @app.get("/cab-queries/{cab_id}", response_model=CabQueryOut)
 def search_cab(cab_id: int, db=Depends(get_db)):
@@ -367,9 +383,11 @@ def create_request(cab_id: int, db=Depends(get_db), current_user: Users = Depend
     req_user_id = current_user.user_id
     ride = db.query(CabQuery).filter(CabQuery.cab_id == cab_id).first()
     if ride is None:
-        raise HTTPException(status_code=404, detail="ride does not exist")
+        raise HTTPException(status_code=404, detail="Ride does not exist")
     elif ride.user_id == req_user_id:
         raise HTTPException(status_code=403, detail="Cannot request your own ride")
+    elif ride.status != "open" or ride.seats_avbl <= 0:
+        raise HTTPException(status_code=409, detail="Ride is full or no longer accepting requests")
     else:
         existing = db.query(CabRequests).filter(
             CabRequests.req_user_id == req_user_id,
@@ -381,7 +399,7 @@ def create_request(cab_id: int, db=Depends(get_db), current_user: Users = Depend
             cab_id=cab_id,
             req_user_id=req_user_id,
             status="open",
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
 
     db.add(req_row)
@@ -400,30 +418,53 @@ def create_request(cab_id: int, db=Depends(get_db), current_user: Users = Depend
 
 @app.patch("/cab-requests/{request_id}", response_model=CabRequestOut)
 def update_request(request_id: int, update: CabRequestUpdate, db=Depends(get_db), current_user: Users = Depends(get_current_user)):
+    allowed_statuses = ("Accepted", "Rejected", "Cancelled")
+    normalized_status = update.status.strip().capitalize() if update.status else ""
+    if normalized_status not in allowed_statuses:
+        raise HTTPException(status_code=422, detail=f"Invalid status '{update.status}'. Must be one of {allowed_statuses}")
+
     query = db.query(CabRequests).filter(CabRequests.req_id == request_id).first()
     if query is None:
         raise HTTPException(status_code=404, detail="Request not Found")
         
-    ride = db.query(CabQuery).filter(CabQuery.cab_id == query.cab_id).first()
-    if ride.user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="Only the driver can update request status")
-    
-    if update.status == "Accepted" and query.status != "Accepted":
-        ride = db.query(CabQuery).filter(CabQuery.cab_id == query.cab_id).first()
-        if ride.seats_avbl > 0:
-            ride.seats_avbl -= 1
-            setattr(query, "status", update.status)
-        else:
-            raise HTTPException(status_code=409, detail="No seats Available")
-    else:
-        setattr(query, "status", update.status)
+    # Lock the ride row for concurrency safety
+    ride = db.query(CabQuery).filter(CabQuery.cab_id == query.cab_id).with_for_update().first()
+    if ride is None:
+        raise HTTPException(status_code=404, detail="Associated ride not found")
 
-    normalized_status = update.status.capitalize() if update.status else "Updated"
+    is_driver = (ride.user_id == current_user.user_id)
+    is_requester = (query.req_user_id == current_user.user_id)
+
+    if normalized_status in ("Accepted", "Rejected"):
+        if not is_driver:
+            raise HTTPException(status_code=403, detail="Only the driver can accept or reject requests")
+    elif normalized_status == "Cancelled":
+        if not is_requester and not is_driver:
+            raise HTTPException(status_code=403, detail="Not authorized to cancel this request")
+
+    prev_status = query.status
+
+    # Seat decrement when transitioning TO Accepted
+    if normalized_status == "Accepted" and prev_status != "Accepted":
+        if ride.seats_avbl <= 0:
+            raise HTTPException(status_code=409, detail="No seats Available")
+        ride.seats_avbl -= 1
+        if ride.seats_avbl == 0:
+            ride.status = "full"
+
+    # Seat restoration when transitioning FROM Accepted to Cancelled or Rejected (Fix seat leak!)
+    elif prev_status == "Accepted" and normalized_status in ("Rejected", "Cancelled"):
+        ride.seats_avbl += 1
+        if ride.status == "full":
+            ride.status = "open"
+
+    query.status = normalized_status
+
     create_notification(
         db,
-        user_id=query.req_user_id,
+        user_id=query.req_user_id if is_driver else ride.user_id,
         title=f"Ride Request {normalized_status}",
-        message=f"Your request to join the ride to {ride.to_loc} was {update.status.lower()}.",
+        message=f"Request to join the ride to {ride.to_loc} was {normalized_status.lower()}.",
         notif_type="cab_response",
         reference_id=str(ride.cab_id)
     )
@@ -437,8 +478,19 @@ def delete_request(request_id: int, db=Depends(get_db), current_user: Users = De
     query = db.query(CabRequests).filter(CabRequests.req_id == request_id).first()
     if query is None:
         raise HTTPException(status_code=404, detail="Request Not Found")
-    if query.req_user_id != current_user.user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this request")
+
+    ride = db.query(CabQuery).filter(CabQuery.cab_id == query.cab_id).with_for_update().first()
+    is_driver = (ride is not None and ride.user_id == current_user.user_id)
+    is_requester = (query.req_user_id == current_user.user_id)
+
+    if not is_requester:
+        raise HTTPException(status_code=403, detail="Only the requester can delete their request")
+
+    # If the deleted request was accepted, restore the seat back to the ride!
+    if query.status == "Accepted" and ride is not None:
+        ride.seats_avbl += 1
+        if ride.status == "full":
+            ride.status = "open"
 
     db.delete(query)
     db.commit()
