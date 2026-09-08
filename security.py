@@ -50,9 +50,19 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     except jwt.InvalidTokenError:
         raise credentials_exception
 
-    user = db.query(Users).filter(Users.user_id == int(user_id)).first()
+    try:
+        uid = int(user_id)
+    except (ValueError, TypeError):
+        raise credentials_exception
+
+    user = db.query(Users).filter(Users.user_id == uid).first()
     if user is None:
         raise credentials_exception
+    if getattr(user, "is_active", True) is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user account",
+        )
     return user
 
 def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> Users | None:
