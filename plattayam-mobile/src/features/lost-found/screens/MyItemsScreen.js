@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   segmentWrap: {
     flexDirection: 'row',
-    backgroundColor: '#e8e3dc',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
     padding: 4,
   },
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#e8e3dc',
+    borderColor: colors.border,
   },
   cardHeaderPressable: {
     width: '100%',
@@ -426,12 +426,12 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: 160,
-    backgroundColor: '#eee9e2',
+    backgroundColor: colors.surfaceAlt,
   },
   placeholderContainer: {
     width: '100%',
     height: 110,
-    backgroundColor: '#eee9e2',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     borderTopWidth: 1,
-    borderTopColor: '#f0ece6',
+    borderTopColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     gap: spacing.md,

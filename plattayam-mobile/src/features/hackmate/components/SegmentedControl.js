@@ -30,7 +30,7 @@ export default function SegmentedControl({ options, selected, onSelect }) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#e8e3dc',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
     padding: 4,
     marginBottom: spacing.md,

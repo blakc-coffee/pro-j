@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     padding: 0,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e8e3dc',
+    borderColor: colors.border,
   },
   pressable: {
     flex: 1,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: '100%',
     height: 180,
-    backgroundColor: '#eee9e2',
+    backgroundColor: colors.surfaceAlt,
   },
   image: {
     width: '100%',
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   placeholderContainer: {
     width: '100%',
     height: 120,
-    backgroundColor: '#eee9e2',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,

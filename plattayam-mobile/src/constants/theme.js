@@ -163,3 +163,48 @@ export function setActiveTheme(mode) {
 export function getActiveTheme() {
   return themes[currentThemeMode] || lightTheme;
 }
+
+export function applyWebTheme(mode) {
+  if (typeof document === 'undefined') return;
+  const theme = themes[mode] || lightTheme;
+  const isDark = theme.isDark;
+
+  // Set attribute on html element
+  document.documentElement.setAttribute('data-theme', mode);
+  document.documentElement.style.backgroundColor = theme.background;
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+
+  if (document.body) {
+    document.body.style.backgroundColor = theme.background;
+    document.body.style.color = theme.foreground;
+  }
+
+  // Inject or update dynamic CSS variables in a dedicated style tag
+  let styleEl = document.getElementById('plattayam-theme-vars');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'plattayam-theme-vars';
+    document.head.appendChild(styleEl);
+  }
+
+  const cssVars = Object.entries(theme)
+    .filter(([_, v]) => typeof v === 'string' && (v.startsWith('#') || v.startsWith('rgb') || v.startsWith('rgba')))
+    .map(([k, v]) => `  --color-${k}: ${v};`)
+    .join('\n');
+
+  styleEl.textContent = `
+:root, html, body {
+${cssVars}
+}
+html, body, #root, #root > div {
+  background-color: ${theme.background} !important;
+  color: ${theme.foreground};
+}
+`;
+}
+
+// Automatically initialize web theme variables on page load
+if (typeof document !== 'undefined') {
+  applyWebTheme(currentThemeMode);
+}
+

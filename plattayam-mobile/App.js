@@ -46,12 +46,24 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
 }
 
 function AppInner() {
-  const { themeMode, isDark } = useTheme();
+  const { themeMode, isDark, colors: activeColors } = useTheme();
+
+  const navigationTheme = useMemo(() => ({
+    dark: isDark,
+    colors: {
+      primary: activeColors.primary,
+      background: activeColors.background,
+      card: activeColors.card,
+      text: activeColors.foreground,
+      border: activeColors.border,
+      notification: activeColors.badgeNotification,
+    },
+  }), [isDark, activeColors]);
 
   return (
     <AuthProvider>
       <NotificationProvider>
-        <NavigationContainer key={themeMode}>
+        <NavigationContainer theme={navigationTheme} key={themeMode}>
           <StatusBar style={isDark ? 'light' : 'dark'} />
           <RootNavigator />
         </NavigationContainer>

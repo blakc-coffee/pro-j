@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getActiveTheme, setActiveTheme, themes } from '../constants/theme';
+import { getActiveTheme, setActiveTheme, applyWebTheme, themes } from '../constants/theme';
 
 const STORAGE_KEY = 'plattayam.theme';
 const ThemeContext = createContext(null);
@@ -17,9 +17,12 @@ export function ThemeProvider({ children }) {
         if (saved === 'dark' || saved === 'light') {
           setThemeModeState(saved);
           setActiveTheme(saved);
+          applyWebTheme(saved);
+        } else {
+          applyWebTheme('light');
         }
       } catch {
-        // Fallback to default light
+        applyWebTheme('light');
       } finally {
         setReady(true);
       }
@@ -31,6 +34,7 @@ export function ThemeProvider({ children }) {
     if (mode !== 'light' && mode !== 'dark') return;
     setThemeModeState(mode);
     setActiveTheme(mode);
+    applyWebTheme(mode);
     try {
       await AsyncStorage.setItem(STORAGE_KEY, mode);
     } catch {}

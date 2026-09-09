@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   },
   typeSegmentContainer: {
     flexDirection: 'row',
-    backgroundColor: '#e8e3dc',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
     padding: 4,
     gap: 4,
@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
   imagePreview: {
     width: '100%',
     height: 200,
-    backgroundColor: '#e8e3dc',
+    backgroundColor: colors.surfaceAlt,
   },
   imageActionRow: {
     flexDirection: 'row',

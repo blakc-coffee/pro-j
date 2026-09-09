@@ -54,7 +54,7 @@ export default function ThemeToggle() {
         onPress={() => setModalVisible(true)}
         style={({ pressed }) => [
           styles.iconButton,
-          { backgroundColor: isDark ? '#11151a' : colors.surfaceAlt, borderColor: colors.border },
+          { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
           pressed && { opacity: 0.75 },
         ]}
         hitSlop={8}
@@ -76,8 +76,8 @@ export default function ThemeToggle() {
             style={[
               styles.dialogCard,
               {
-                backgroundColor: isDark ? '#000000' : colors.card,
-                borderColor: isDark ? '#292d30' : colors.border,
+                backgroundColor: colors.card,
+                borderColor: colors.border,
               },
             ]}
             onPress={(e) => e.stopPropagation()}
@@ -96,8 +96,8 @@ export default function ThemeToggle() {
               style={({ pressed }) => [
                 styles.optionRow,
                 {
-                  backgroundColor: themeMode === 'light' ? (isDark ? '#11151a' : colors.surfaceAlt) : 'transparent',
-                  borderColor: themeMode === 'light' ? colors.primary : (isDark ? '#292d30' : colors.border),
+                  backgroundColor: themeMode === 'light' ? colors.surfaceAlt : 'transparent',
+                  borderColor: themeMode === 'light' ? colors.primary : colors.border,
                 },
                 pressed && { opacity: 0.8 },
               ]}
@@ -129,8 +129,8 @@ export default function ThemeToggle() {
               style={({ pressed }) => [
                 styles.optionRow,
                 {
-                  backgroundColor: themeMode === 'dark' ? (isDark ? '#0b0e14' : colors.surfaceAlt) : 'transparent',
-                  borderColor: themeMode === 'dark' ? colors.primary : (isDark ? '#292d30' : colors.border),
+                  backgroundColor: themeMode === 'dark' ? colors.surfaceAlt : 'transparent',
+                  borderColor: themeMode === 'dark' ? colors.primary : colors.border,
                 },
                 pressed && { opacity: 0.8 },
               ]}

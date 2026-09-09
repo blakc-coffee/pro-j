@@ -426,7 +426,7 @@ export default function ItemDetailsScreen() {
                 <View style={styles.messageInputRow}>
                   <TextInput
                     placeholder="Type a message or location update..."
-                    placeholderTextColor="#999388"
+                    placeholderTextColor={colors.inputPlaceholder}
                     value={newMessage}
                     onChangeText={setNewMessage}
                     multiline
@@ -491,17 +491,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#e8e3dc',
+    borderColor: colors.border,
   },
   heroImage: {
     width: '100%',
     height: 240,
-    backgroundColor: '#eee9e2',
+    backgroundColor: colors.surfaceAlt,
   },
   heroPlaceholder: {
     width: '100%',
     height: 180,
-    backgroundColor: '#eee9e2',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
@@ -566,13 +566,13 @@ const styles = StyleSheet.create({
   detailsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    backgroundColor: '#fbfaf8',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.sm,
     padding: spacing.sm,
     marginBottom: spacing.md,
     gap: spacing.sm,
     borderWidth: 1,
-    borderColor: '#eee9e2',
+    borderColor: colors.border,
   },
   detailItem: {
     flex: 1,
@@ -641,9 +641,9 @@ const styles = StyleSheet.create({
     color: colors.foreground,
   },
   ownerCard: {
-    backgroundColor: '#fefcf8',
-    borderWidth: 1.5,
-    borderColor: '#e8dcce',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: spacing.md,
   },
   ownerTitle: {
@@ -733,9 +733,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   messageBubble: {
-    backgroundColor: '#f7f5f2',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#e8e3dc',
+    borderColor: colors.border,
     borderRadius: radius.sm,
     padding: spacing.sm,
   },
@@ -778,15 +778,15 @@ const styles = StyleSheet.create({
   },
   messageTextInput: {
     flex: 1,
-    backgroundColor: '#f7f5f2',
+    backgroundColor: colors.input,
     borderWidth: 1,
-    borderColor: '#e2ddd5',
+    borderColor: colors.inputBorder,
     borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 8,
     minHeight: 40,
     fontSize: 13,
-    color: colors.foreground,
+    color: colors.inputText,
   },
   sendButton: {
     backgroundColor: colors.primary,

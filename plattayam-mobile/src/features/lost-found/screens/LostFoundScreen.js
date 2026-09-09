@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#e8e3dc',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
     padding: 4,
     marginBottom: spacing.sm,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: '#e8e3dc',
+    borderColor: colors.border,
   },
   sortChipActive: {
     backgroundColor: colors.primary,

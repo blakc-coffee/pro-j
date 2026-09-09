@@ -503,9 +503,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f7f5f2',
+    backgroundColor: colors.input,
     borderWidth: 1,
-    borderColor: '#e2ddd5',
+    borderColor: colors.inputBorder,
     borderRadius: radius.sm,
     paddingHorizontal: 12,
     minHeight: 44,
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   placeholderText: {
-    color: '#999388',
+    color: colors.inputPlaceholder,
     fontWeight: '400',
   },
   pickerIcon: {
