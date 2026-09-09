@@ -65,19 +65,35 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user?.access_token) return;
 
-    const remainingMs = getTokenRemainingMs(user.access_token);
-    if (remainingMs !== null) {
-      if (remainingMs <= 0) {
+    // Periodic check every 30 seconds for token expiration
+    const checkExpiration = () => {
+      if (user?.access_token && isTokenExpired(user.access_token)) {
         logout();
-        return;
       }
-      // Set timer to automatically redirect to login when session expires
-      const timer = setTimeout(() => {
+    };
+
+    // Check immediately if already expired
+    if (isTokenExpired(user.access_token)) {
+      logout();
+      return;
+    }
+
+    const remainingMs = getTokenRemainingMs(user.access_token);
+    let timer = null;
+    // Only schedule single setTimeout if delay is within 24 hours (86,400,000 ms)
+    // to strictly prevent 32-bit signed integer overflow in JavaScript timers
+    if (remainingMs !== null && remainingMs > 0 && remainingMs <= 86400000) {
+      timer = setTimeout(() => {
         logout();
       }, remainingMs);
-
-      return () => clearTimeout(timer);
     }
+
+    const interval = setInterval(checkExpiration, 30000);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [user, logout]);
 
   async function login(roll_no, password) {

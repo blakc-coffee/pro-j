@@ -73,7 +73,10 @@ export function decodeJwtPayload(token) {
     const parts = token.split('.');
     if (parts.length < 2) return null;
     const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
     const jsonStr = safeAtob(base64);
     return JSON.parse(jsonStr);
   } catch {
@@ -83,13 +86,13 @@ export function decodeJwtPayload(token) {
 
 export function isTokenExpired(token, bufferSeconds = 5) {
   const payload = decodeJwtPayload(token);
-  if (!payload || !payload.exp) return false;
+  if (!payload || typeof payload.exp !== 'number') return false;
   return Date.now() >= (payload.exp * 1000 - bufferSeconds * 1000);
 }
 
 export function getTokenRemainingMs(token) {
   const payload = decodeJwtPayload(token);
-  if (!payload || !payload.exp) return null;
+  if (!payload || typeof payload.exp !== 'number') return null;
   const remaining = (payload.exp * 1000) - Date.now();
   return remaining > 0 ? remaining : 0;
 }
@@ -108,6 +111,8 @@ export async function apiRequest(path, options = {}) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
+  const isLoginEndpoint = path === '/login' || path.startsWith('/auth/login') || path.startsWith('/auth/google');
+
   try {
     let stored = null;
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -125,7 +130,7 @@ export async function apiRequest(path, options = {}) {
       } catch (e) {}
     }
 
-    if (token && isTokenExpired(token)) {
+    if (!isLoginEndpoint && token && isTokenExpired(token)) {
       if (!isHandlingUnauthorized) {
         isHandlingUnauthorized = true;
         AsyncStorage.removeItem('plattayam.user').catch(() => {});

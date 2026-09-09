@@ -1,5 +1,11 @@
 const { test, expect } = require('@playwright/test');
 
+function createTestJwt(expSecondsFromNow = 90 * 86400) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: '1', exp: Math.floor(Date.now() / 1000) + expSecondsFromNow })).toString('base64url');
+  return `${header}.${payload}.mockSignature123`;
+}
+
 test.describe('Comprehensive Plattayam Routes and Theme Verification', () => {
   let uncaughtErrors = [];
 
@@ -20,7 +26,7 @@ test.describe('Comprehensive Plattayam Routes and Theme Verification', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          access_token: 'mock-jwt-token',
+          access_token: createTestJwt(90 * 86400),
           user_id: 1,
           name: 'Dharun Kumar',
           roll_no: '2021001',
