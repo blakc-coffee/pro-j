@@ -6,23 +6,45 @@ import { getActiveTheme, setActiveTheme, applyWebTheme, themes } from '../consta
 const STORAGE_KEY = 'plattayam.theme';
 const ThemeContext = createContext(null);
 
+function getSavedTheme() {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved === 'dark' || saved === 'light') {
+        return saved;
+      }
+    } catch {}
+  }
+  return 'light';
+}
+
 export function ThemeProvider({ children }) {
-  const [themeMode, setThemeModeState] = useState('light');
+  const [themeMode, setThemeModeState] = useState(getSavedTheme);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     async function restoreTheme() {
       try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        let saved = null;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            saved = window.localStorage.getItem(STORAGE_KEY);
+          } catch {}
+        }
+        if (!saved) {
+          saved = await AsyncStorage.getItem(STORAGE_KEY);
+        }
         if (saved === 'dark' || saved === 'light') {
           setThemeModeState(saved);
           setActiveTheme(saved);
           applyWebTheme(saved);
         } else {
-          applyWebTheme('light');
+          const current = getSavedTheme();
+          setActiveTheme(current);
+          applyWebTheme(current);
         }
       } catch {
-        applyWebTheme('light');
+        applyWebTheme(themeMode);
       } finally {
         setReady(true);
       }
@@ -35,6 +57,11 @@ export function ThemeProvider({ children }) {
     setThemeModeState(mode);
     setActiveTheme(mode);
     applyWebTheme(mode);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, mode);
+      } catch {}
+    }
     try {
       await AsyncStorage.setItem(STORAGE_KEY, mode);
     } catch {}

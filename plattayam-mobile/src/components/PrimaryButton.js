@@ -30,6 +30,8 @@ export default function PrimaryButton({
     ? colors.primary
     : tone === 'secondary'
     ? colors.foreground
+    : tone === 'destructive'
+    ? colors.destructiveForeground
     : colors.primaryForeground;
 
   return (

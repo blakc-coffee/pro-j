@@ -51,6 +51,49 @@ export async function warmUpServer() {
   }
 }
 
+function safeAtob(str) {
+  if (typeof atob === 'function') {
+    return atob(str);
+  }
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(str, 'base64').toString('binary');
+  }
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+  let output = '';
+  const clean = String(str).replace(/=+$/, '');
+  for (let bc = 0, bs = 0, buffer, idx = 0; (buffer = clean.charAt(idx++)); ~buffer && ((bs = bc % 4 ? bs * 64 + buffer : buffer), bc++ % 4) ? (output += String.fromCharCode(255 & (bs >> ((-2 * bc) & 6)))) : 0) {
+    buffer = chars.indexOf(buffer);
+  }
+  return output;
+}
+
+export function decodeJwtPayload(token) {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonStr = safeAtob(base64);
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
+export function isTokenExpired(token, bufferSeconds = 5) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.exp) return false;
+  return Date.now() >= (payload.exp * 1000 - bufferSeconds * 1000);
+}
+
+export function getTokenRemainingMs(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.exp) return null;
+  const remaining = (payload.exp * 1000) - Date.now();
+  return remaining > 0 ? remaining : 0;
+}
+
 export async function apiRequest(path, options = {}) {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
@@ -66,12 +109,41 @@ export async function apiRequest(path, options = {}) {
   const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
   try {
-    const stored = await AsyncStorage.getItem('plattayam.user');
+    let stored = null;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        stored = window.localStorage.getItem('plattayam.user');
+      } catch {}
+    }
+    if (!stored) {
+      stored = await AsyncStorage.getItem('plattayam.user');
+    }
     if (stored) {
       try {
         const user = JSON.parse(stored);
         token = user.access_token;
       } catch (e) {}
+    }
+
+    if (token && isTokenExpired(token)) {
+      if (!isHandlingUnauthorized) {
+        isHandlingUnauthorized = true;
+        AsyncStorage.removeItem('plattayam.user').catch(() => {});
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.removeItem('plattayam.user');
+          } catch {}
+        }
+        if (typeof onUnauthorizedCallback === 'function') {
+          try {
+            onUnauthorizedCallback();
+          } catch (e) {}
+        }
+        setTimeout(() => {
+          isHandlingUnauthorized = false;
+        }, 1000);
+      }
+      throw new Error('Session expired. Please sign in again.');
     }
 
     response = await fetch(`${baseUrl}${path}`, {
@@ -89,6 +161,9 @@ export async function apiRequest(path, options = {}) {
   } catch (err) {
     if (err?.name === 'AbortError') {
       throw new Error('Server took too long to respond. The server may still be waking up. Please try again.');
+    }
+    if (err?.message?.includes('Session expired')) {
+      throw err;
     }
     throw new Error(
       `Could not reach ${baseUrl}. Phone and laptop must share Wi-Fi, and FastAPI must listen on 0.0.0.0:${baseUrl.split(':').pop()}.`
@@ -112,13 +187,18 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (response.status === 401) {
-    // 401 on protected requests indicates an expired or invalid JWT token.
+    // 401 on protected requests indicates an expired or invalid JWT session.
     // We do NOT treat unauthenticated login attempts as session expiry.
     const isLoginEndpoint = path === '/login' || path.startsWith('/auth/login') || path.startsWith('/auth/google');
-    if (!isLoginEndpoint && token) {
+    if (!isLoginEndpoint) {
       if (!isHandlingUnauthorized) {
         isHandlingUnauthorized = true;
         AsyncStorage.removeItem('plattayam.user').catch(() => {});
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.removeItem('plattayam.user');
+          } catch {}
+        }
         if (typeof onUnauthorizedCallback === 'function') {
           try {
             onUnauthorizedCallback();

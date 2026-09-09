@@ -89,16 +89,19 @@ export default function CabsScreen() {
             returnKeyType="search"
           />
 
-          <View style={styles.filters}>
+          {/* Status Filter Segmented Control: All | Open | Full */}
+          <View style={styles.segmentedContainer}>
             {FILTERS.map((item) => {
               const active = item === filter;
               return (
                 <Pressable
                   key={item}
                   onPress={() => setFilter(item)}
-                  style={[styles.chip, active && styles.chipActive]}
+                  style={[styles.segment, active && styles.segmentActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
                 >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
                     {item}
                   </Text>
                 </Pressable>
@@ -145,31 +148,37 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     marginBottom: spacing.xs,
   },
-  filters: {
+  segmentedContainer: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: 4,
     marginBottom: spacing.sm,
   },
-  chip: {
-    backgroundColor: colors.card,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-    minHeight: 36,
+  segment: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.sm,
   },
-  chipActive: {
-    backgroundColor: colors.foreground,
-    borderColor: colors.foreground,
+  segmentActive: {
+    backgroundColor: colors.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  chipText: {
-    ...typography.label,
+  segmentText: {
+    ...typography.body,
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.mutedForeground,
   },
-  chipTextActive: {
-    color: colors.white,
+  segmentTextActive: {
+    color: colors.foreground,
+    fontWeight: '700',
   },
   list: {
     paddingHorizontal: spacing.lg,

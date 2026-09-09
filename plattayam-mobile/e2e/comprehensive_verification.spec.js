@@ -1,4 +1,4 @@
-﻿const { test, expect } = require('@playwright/test');
+const { test, expect } = require('@playwright/test');
 
 test.describe('Comprehensive Plattayam Routes and Theme Verification', () => {
   let uncaughtErrors = [];
@@ -221,32 +221,20 @@ test.describe('Comprehensive Plattayam Routes and Theme Verification', () => {
     await expect(page.getByText('Profile', { exact: true }).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('Dharun Kumar').first()).toBeVisible();
 
-    // 7. Theme Toggle Modal on Profile Screen
+    // 7. Direct Theme Toggle on Profile Screen (No modal, instant toggle)
     const themeToggleBtn = page.getByLabel(/Theme switch/i).first();
     await expect(themeToggleBtn).toBeVisible();
     await themeToggleBtn.click();
-
-    // Check Appearance modal is open
-    await expect(page.getByText('Appearance').first()).toBeVisible();
-    await expect(page.getByText('Warm Cream Editorial Workspace').first()).toBeVisible();
-    await expect(page.getByText('Resend Black Velvet with Violet Neon').first()).toBeVisible();
-    await page.screenshot({ path: 'e2e/screenshots/route_theme_modal.png' });
-
-    // Switch to Dark Mode
-    const darkOption = page.getByText('Dark', { exact: true }).first();
-    await darkOption.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(300);
 
     // Verify Dark Mode attributes applied
     const dataThemeDark = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
     expect(dataThemeDark).toBe('dark');
     await page.screenshot({ path: 'e2e/screenshots/route_profile_dark.png' });
 
-    // Switch back to Light Mode
+    // Switch back to Light Mode with one click
     await themeToggleBtn.click();
-    const lightOption = page.getByText('Light', { exact: true }).first();
-    await lightOption.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(300);
 
     const dataThemeLight = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
     expect(dataThemeLight).toBe('light');

@@ -46,9 +46,9 @@ export const lightTheme = {
   warningForeground: '#ffffff',
   warningSoft: '#fef7e0',
 
-  destructive: '#d9381e',
+  destructive: '#b91c1c',
   destructiveForeground: '#ffffff',
-  destructiveSoft: '#fce8e6',
+  destructiveSoft: '#fee2e2',
 
   // Hairline Borders & Inputs
   border: '#eee9e2',
@@ -117,9 +117,9 @@ export const darkTheme = {
   warningSoft: 'rgba(255, 202, 22, 0.14)',
   warningGlow: '#ffd60a',
 
-  destructive: '#ff9592',        // Alarm Red
-  destructiveForeground: '#000000',
-  destructiveSoft: 'rgba(255, 149, 146, 0.14)',
+  destructive: '#dc2626',        // Solid Darker Red
+  destructiveForeground: '#ffffff',
+  destructiveSoft: 'rgba(220, 38, 38, 0.16)',
   crimson: '#ff6465',
 
   // Hairline Borders & Inputs (Resend: Graphite Hairline #292d30)
@@ -153,6 +153,14 @@ export const themes = {
 };
 
 let currentThemeMode = 'light';
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const saved = window.localStorage.getItem('plattayam.theme');
+    if (saved === 'dark' || saved === 'light') {
+      currentThemeMode = saved;
+    }
+  } catch {}
+}
 
 export function setActiveTheme(mode) {
   if (mode === 'dark' || mode === 'light') {

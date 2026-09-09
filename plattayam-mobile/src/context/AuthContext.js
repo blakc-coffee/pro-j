@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { setOnUnauthorized } from '../services/api';
+import { getTokenRemainingMs, isTokenExpired, setOnUnauthorized } from '../services/api';
 import { loginRequest } from '../services/auth';
 
 const STORAGE_KEY = 'plattayam.user';
@@ -15,6 +15,11 @@ export function AuthProvider({ children }) {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch {}
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+    }
     setUser(null);
   }, []);
 
@@ -28,9 +33,23 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     async function restoreUser() {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        let stored = null;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            stored = window.localStorage.getItem(STORAGE_KEY);
+          } catch {}
+        }
+        if (!stored) {
+          stored = await AsyncStorage.getItem(STORAGE_KEY);
+        }
         if (stored) {
-          setUser(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          if (parsed?.access_token && isTokenExpired(parsed.access_token)) {
+            // Session has timed out - automatically wipe and stay on login
+            await logout();
+            return;
+          }
+          setUser(parsed);
         }
       } catch {
         setUser(null);
@@ -40,11 +59,38 @@ export function AuthProvider({ children }) {
     }
 
     restoreUser();
-  }, []);
+  }, [logout]);
+
+  // Automatic real-time session timeout watcher
+  useEffect(() => {
+    if (!user?.access_token) return;
+
+    const remainingMs = getTokenRemainingMs(user.access_token);
+    if (remainingMs !== null) {
+      if (remainingMs <= 0) {
+        logout();
+        return;
+      }
+      // Set timer to automatically redirect to login when session expires
+      const timer = setTimeout(() => {
+        logout();
+      }, remainingMs);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user, logout]);
 
   async function login(roll_no, password) {
     const data = await loginRequest(roll_no, password);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, serialized);
+    } catch {}
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, serialized);
+      } catch {}
+    }
     setUser(data);
   }
 

@@ -699,7 +699,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
-  deleteButton: {},
+  deleteButton: {
+    backgroundColor: colors.destructiveSoft,
+    borderColor: colors.destructive,
+  },
   deleteButtonText: {
     ...typography.caption,
     fontSize: 14,

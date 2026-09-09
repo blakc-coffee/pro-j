@@ -1,4 +1,4 @@
-﻿const { test, expect } = require('@playwright/test');
+const { test, expect } = require('@playwright/test');
 
 test.describe('100% UI Theme Verification Across All Pages', () => {
   let uncaughtErrors = [];
@@ -201,15 +201,11 @@ test.describe('100% UI Theme Verification Across All Pages', () => {
     await page.screenshot({ path: 'e2e/screenshots/5_profile_light.png' });
 
     // -------------------------------------------------------------
-    // STEP 2: Toggle to DARK MODE
+    // STEP 2: Direct One-Click Toggle to DARK MODE (No modal)
     // -------------------------------------------------------------
     const themeToggleBtn = page.getByLabel(/Theme switch/i).first();
     await themeToggleBtn.click({ force: true });
-    await expect(page.getByText('Appearance').first()).toBeVisible();
-
-    const darkOption = page.getByText('Dark', { exact: true }).first();
-    await darkOption.click({ force: true });
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(300);
 
     // Verify dark attributes applied to DOM
     const themeDark = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
@@ -218,6 +214,10 @@ test.describe('100% UI Theme Verification Across All Pages', () => {
     const darkBg = await page.evaluate(() => window.getComputedStyle(document.body).backgroundColor);
     // Dark theme background is pure black: rgb(0, 0, 0)
     expect(darkBg).toBe('rgb(0, 0, 0)');
+
+    // Verify theme persistence in localStorage
+    const savedTheme = await page.evaluate(() => window.localStorage.getItem('plattayam.theme'));
+    expect(savedTheme).toBe('dark');
 
     // Screenshot 6: Profile (Dark)
     await page.screenshot({ path: 'e2e/screenshots/6_profile_dark.png' });
@@ -232,6 +232,11 @@ test.describe('100% UI Theme Verification Across All Pages', () => {
     // Screenshot 7: Cabs (Dark)
     await cabsTab.click({ force: true });
     await page.waitForTimeout(300);
+
+    // Verify Cabs unified segmented filters (All, Open, Full)
+    await expect(page.getByText('All', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Open', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Full', { exact: true }).first()).toBeVisible();
 
     // Verify body background is dark on Cabs screen
     const cabsBg = await page.evaluate(() => window.getComputedStyle(document.body).backgroundColor);
@@ -278,18 +283,14 @@ test.describe('100% UI Theme Verification Across All Pages', () => {
     }
 
     // -------------------------------------------------------------
-    // STEP 4: Toggle Back to LIGHT MODE
+    // STEP 4: Direct One-Click Toggle Back to LIGHT MODE
     // -------------------------------------------------------------
     await profileBtn.click({ force: true });
     await expect(page.getByText('Profile', { exact: true }).first()).toBeVisible({ timeout: 5000 });
 
     const themeToggleBtn2 = page.getByLabel(/Theme switch/i).first();
     await themeToggleBtn2.click({ force: true });
-    await expect(page.getByText('Appearance').first()).toBeVisible();
-
-    const lightOption = page.getByText('Light', { exact: true }).first();
-    await lightOption.click({ force: true });
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(300);
 
     const themeReturned = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
     expect(themeReturned).toBe('light');
@@ -312,5 +313,60 @@ test.describe('100% UI Theme Verification Across All Pages', () => {
     // CRITICAL ASSERTION: Zero uncaught runtime exceptions / TypeErrors
     // -------------------------------------------------------------
     expect(uncaughtErrors).toEqual([]);
+  });
+
+  test('verifies theme preset persistence on page reload', async ({ page }) => {
+    await page.goto('/');
+    const usernameInput = page.getByPlaceholder(/roll number/i).or(page.getByLabel(/username|roll/i)).or(page.locator('input').first());
+    await expect(usernameInput).toBeVisible({ timeout: 10000 });
+    await usernameInput.fill('2021001');
+    await page.getByPlaceholder(/password/i).or(page.locator('input[type="password"]')).fill('keyan@NHA04');
+    await page.getByText(/sign in/i).first().click();
+    await expect(page.getByText('Plattayam').first()).toBeVisible({ timeout: 8000 });
+
+    // Open Profile and toggle to Dark
+    await page.getByLabel(/Profile/i).first().click({ force: true });
+    await expect(page.getByText('Profile', { exact: true }).first()).toBeVisible({ timeout: 5000 });
+
+    const themeToggleBtn = page.getByLabel(/Theme switch/i).first();
+    await themeToggleBtn.click({ force: true });
+    await page.waitForTimeout(300);
+
+    // Verify localStorage has 'dark'
+    const stored = await page.evaluate(() => window.localStorage.getItem('plattayam.theme'));
+    expect(stored).toBe('dark');
+
+    // Reload the page
+    await page.reload();
+
+    // Verify the page loads directly in dark theme with zero flash
+    const reloadedTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+    expect(reloadedTheme).toBe('dark');
+  });
+
+  test('verifies session timeout auto-redirects back to login page', async ({ page }) => {
+    await page.goto('/');
+    const usernameInput = page.getByPlaceholder(/roll number/i).or(page.getByLabel(/username|roll/i)).or(page.locator('input').first());
+    await expect(usernameInput).toBeVisible({ timeout: 10000 });
+    await usernameInput.fill('2021001');
+    await page.getByPlaceholder(/password/i).or(page.locator('input[type="password"]')).fill('keyan@NHA04');
+    await page.getByText(/sign in/i).first().click();
+    await expect(page.getByText('Plattayam').first()).toBeVisible({ timeout: 8000 });
+
+    // Simulate session expiry by intercepting API request to return 401
+    await page.route('**/lost-found/items**', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Token expired' }),
+      });
+    });
+
+    // Navigate to Lost & Found to trigger the protected request
+    const lostTab = page.getByText('Lost & Found').first();
+    await lostTab.click({ force: true });
+
+    // The app must detect 401 and redirect back to the Login screen automatically!
+    await expect(page.getByText(/sign in/i).first()).toBeVisible({ timeout: 10000 });
   });
 });
