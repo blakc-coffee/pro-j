@@ -235,7 +235,17 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Username and password required")
 
     # 1. FAST PATH (<50ms): Verify password locally using PBKDF2 hash if previously cached
-    user = db.query(Users).filter(Users.roll_no == username).first()
+    try:
+        user = db.query(Users).filter(Users.roll_no == username).first()
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "is_active" in err_msg or "password_hash" in err_msg or "created_at" in err_msg:
+            logger.warning("Missing user columns detected during query; executing on-demand schema repair: %s", e)
+            db.rollback()
+            startup_db_migrations()
+            user = db.query(Users).filter(Users.roll_no == username).first()
+        else:
+            raise
     if user and getattr(user, "password_hash", None):
         if verify_password(password, user.password_hash):
             if getattr(user, "is_active", True) is False:
