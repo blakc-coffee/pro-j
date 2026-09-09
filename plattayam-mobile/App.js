@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Alert, Platform } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -48,22 +48,47 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
 function AppInner() {
   const { themeMode, isDark, colors: activeColors } = useTheme();
 
-  const navigationTheme = useMemo(() => ({
-    dark: isDark,
-    colors: {
-      primary: activeColors.primary,
-      background: activeColors.background,
-      card: activeColors.card,
-      text: activeColors.foreground,
-      border: activeColors.border,
-      notification: activeColors.badgeNotification,
-    },
-  }), [isDark, activeColors]);
+  const navigationTheme = useMemo(() => {
+    const baseTheme = isDark ? DarkTheme : DefaultTheme;
+    const defaultFonts = {
+      regular: {
+        fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        fontWeight: '400',
+      },
+      medium: {
+        fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        fontWeight: '500',
+      },
+      bold: {
+        fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        fontWeight: '600',
+      },
+      heavy: {
+        fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        fontWeight: '700',
+      },
+    };
+
+    return {
+      ...baseTheme,
+      dark: isDark,
+      colors: {
+        ...(baseTheme?.colors || {}),
+        primary: activeColors.primary,
+        background: activeColors.background,
+        card: activeColors.card,
+        text: activeColors.foreground,
+        border: activeColors.border,
+        notification: activeColors.badgeNotification,
+      },
+      fonts: baseTheme?.fonts || defaultFonts,
+    };
+  }, [isDark, activeColors]);
 
   return (
     <AuthProvider>
       <NotificationProvider>
-        <NavigationContainer theme={navigationTheme} key={themeMode}>
+        <NavigationContainer theme={navigationTheme}>
           <StatusBar style={isDark ? 'light' : 'dark'} />
           <RootNavigator />
         </NavigationContainer>

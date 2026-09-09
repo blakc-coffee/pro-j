@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
@@ -68,7 +68,7 @@ export default function ThemeToggle() {
       <Modal
         visible={modalVisible}
         transparent
-        animationType="fade"
+        animationType={Platform.OS === 'web' ? 'none' : 'fade'}
         onRequestClose={() => setModalVisible(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
@@ -76,7 +76,7 @@ export default function ThemeToggle() {
             style={[
               styles.dialogCard,
               {
-                backgroundColor: colors.card,
+                backgroundColor: isDark ? '#000000' : '#ffffff',
                 borderColor: colors.border,
               },
             ]}

@@ -196,7 +196,7 @@ export function applyWebTheme(mode) {
 :root, html, body {
 ${cssVars}
 }
-html, body, #root, #root > div {
+html, body, #root {
   background-color: ${theme.background} !important;
   color: ${theme.foreground};
 }
