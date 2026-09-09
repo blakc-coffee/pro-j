@@ -10,7 +10,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 import requests as std_requests
 import re
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from model import (
     CabQuery, CabQueryOut, CabQueryCreate, CabQueryUpdate,
     CabRequestOut, CabRequestUpdate, CabRequests,
@@ -26,7 +26,7 @@ from model import (
     Notification, NotificationOut, NotificationListOut
 )
 from database import get_db
-from security import create_access_token, get_current_user, get_current_user_optional
+from security import create_access_token, get_current_user, get_current_user_optional, hash_password, verify_password
 
 logger = logging.getLogger("plattayam.api")
 
@@ -95,6 +95,14 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"status": "ok", "service": "Plattayam Backend API"}
+
+@app.get("/health")
+def health_check(db=Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "service": "Plattayam Backend API", "database": "connected"}
+    except Exception as e:
+        return {"status": "degraded", "service": "Plattayam Backend API", "database": str(e)}
 
 @app.post("/auth/google", response_model=AuthResponse)
 def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
@@ -168,12 +176,30 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
 
 @app.post("/auth/login", response_model=AuthResponse)
 def auth_lms(creds: UserLogin, db=Depends(get_db)):
-    username = creds.email_id
+    username = creds.email_id.strip() if creds.email_id else ""
     password = creds.password
     
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password required")
-        
+
+    # 1. FAST PATH (<50ms): Verify password locally using PBKDF2 hash if previously cached
+    user = db.query(Users).filter(Users.roll_no == username).first()
+    if user and getattr(user, "password_hash", None):
+        if verify_password(password, user.password_hash):
+            if getattr(user, "is_active", True) is False:
+                raise HTTPException(status_code=403, detail="Inactive user account")
+            onboarding_required = user.gender is None or user.phone_no is None
+            access_token = create_access_token({"sub": str(user.user_id)})
+            return AuthResponse(
+                access_token=access_token,
+                user_id=user.user_id,
+                roll_no=user.roll_no,
+                email_id=user.email_id,
+                name=user.name,
+                onboarding_required=onboarding_required,
+            )
+
+    # 2. LMS FALLBACK: For first-time sign-ins, or when user updated password on college LMS
     origin = "https://lmsug24.iiitkottayam.ac.in"
     if username.startswith("20") and len(username) >= 4:
         year_str = username[2:4]
@@ -209,36 +235,53 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
         if "loginerrormessage" in html2 or "Invalid login" in html2 or "name=\"logintoken\"" in html2:
             raise HTTPException(status_code=401, detail="Invalid credentials")
             
-        resp3 = session.get(f"{origin}/my/", timeout=10)
-        resp3.raise_for_status()
-        html3 = resp3.text
+        # 3. ELIMINATE REDUNDANT /my/ FETCH:
+        # If user already exists with name/email in DB, skip loading the heavy /my/ dashboard!
+        name = None
+        email = None
+        if not user or not user.name:
+            resp3 = session.get(f"{origin}/my/", timeout=10)
+            resp3.raise_for_status()
+            html3 = resp3.text
+            
+            name_match = re.search(r'class="usertext[^>]*>\s*([^<]+)\s*<', html3)
+            name = name_match.group(1).strip() if name_match else None
+            
+            if not name:
+                 name_match = re.search(r'userpicture.*?alt="Picture of ([^"]+)"', html3)
+                 name = name_match.group(1).strip() if name_match else None
+                 
+            email_match = re.search(r'mailto:([^"]+)', html3)
+            email = email_match.group(1) if email_match else None
         
-        name_match = re.search(r'class="usertext[^>]*>\s*([^<]+)\s*<', html3)
-        name = name_match.group(1).strip() if name_match else None
-        
-        if not name:
-             name_match = re.search(r'userpicture.*?alt="Picture of ([^"]+)"', html3)
-             name = name_match.group(1).strip() if name_match else None
-             
-        email_match = re.search(r'mailto:([^"]+)', html3)
-        email = email_match.group(1) if email_match else None
-        
-        user = db.query(Users).filter(Users.roll_no == username).first()
-        
+        # 4. SECURELY CACHE PASSWORD HASH FOR INSTANT FUTURE LOGINS
+        new_hash = hash_password(password)
         if not user:
             user = Users(
                 roll_no=username,
                 email_id=email,
                 name=name or username,
                 gender=None,
-                phone_no=None
+                phone_no=None,
+                password_hash=new_hash,
+                is_active=True,
             )
             db.add(user)
             db.commit()
             db.refresh(user)
+        else:
+            user.password_hash = new_hash
+            if name and not user.name:
+                user.name = name
+            if email and not user.email_id:
+                user.email_id = email
+            db.commit()
+            db.refresh(user)
             
+        if getattr(user, "is_active", True) is False:
+            raise HTTPException(status_code=403, detail="Inactive user account")
+
         onboarding_required = user.gender is None or user.phone_no is None
-        
         access_token = create_access_token({"sub": str(user.user_id)})
         
         return AuthResponse(

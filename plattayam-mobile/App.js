@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Alert, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -6,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import { warmUpServer } from './src/services/api';
 
 // Polyfill Alert.alert for React Native Web so button callbacks and confirmations work
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -43,6 +45,10 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
 }
 
 export default function App() {
+  useEffect(() => {
+    warmUpServer();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

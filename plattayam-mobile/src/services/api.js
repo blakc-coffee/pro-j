@@ -26,6 +26,31 @@ function formatApiError(data, status) {
   return `Request failed (${status})`;
 }
 
+let isWarmingUp = false;
+
+/**
+ * Sends a lightweight, non-blocking background ping to wake up cold serverless instances
+ * and pre-warm database connection pools on app launch.
+ */
+export async function warmUpServer() {
+  if (isWarmingUp) return;
+  isWarmingUp = true;
+  try {
+    const baseUrl = getApiBaseUrl();
+    if (!baseUrl) return;
+    await fetch(`${baseUrl}/health`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+  } catch {
+    // Silently ignore background ping errors
+  } finally {
+    setTimeout(() => {
+      isWarmingUp = false;
+    }, 15000);
+  }
+}
+
 export async function apiRequest(path, options = {}) {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
@@ -33,10 +58,13 @@ export async function apiRequest(path, options = {}) {
       'API URL is not configured. Set EXPO_PUBLIC_API_URL to your computer\'s LAN address, for example http://192.168.x.x:8000.'
     );
   }
-  const { headers, body, ...rest } = options;
+  const { headers, body, timeoutMs = 25000, ...rest } = options;
 
   let response;
   let token = null;
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
   try {
     const stored = await AsyncStorage.getItem('plattayam.user');
     if (stored) {
@@ -47,6 +75,7 @@ export async function apiRequest(path, options = {}) {
     }
 
     response = await fetch(`${baseUrl}${path}`, {
+      signal: controller?.signal,
       headers: {
         Accept: 'application/json',
         'Bypass-Tunnel-Reminder': 'true',
@@ -57,10 +86,15 @@ export async function apiRequest(path, options = {}) {
       body,
       ...rest,
     });
-  } catch {
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error('Server took too long to respond. The server may still be waking up. Please try again.');
+    }
     throw new Error(
       `Could not reach ${baseUrl}. Phone and laptop must share Wi-Fi, and FastAPI must listen on 0.0.0.0:${baseUrl.split(':').pop()}.`
     );
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 
   if (response.status === 204) {

@@ -22,6 +22,7 @@ export default function LoginScreen() {
   const [rollNo, setRollNo] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState('Signing In...');
   const [error, setError] = useState('');
 
   async function onSubmit() {
@@ -32,13 +33,26 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
+    setLoadingStatus('Signing In...');
     setError('');
+
+    const t1 = setTimeout(() => {
+      setLoadingStatus('Connecting to campus server...');
+    }, 2500);
+
+    const t2 = setTimeout(() => {
+      setLoadingStatus('Waking up server, almost there...');
+    }, 6000);
+
     try {
       await login(rollNo.trim(), password);
     } catch (err) {
       setError(err.message);
     } finally {
+      clearTimeout(t1);
+      clearTimeout(t2);
       setLoading(false);
+      setLoadingStatus('Signing In...');
     }
   }
 
@@ -76,9 +90,13 @@ export default function LoginScreen() {
             <PrimaryButton
               label="Sign In"
               loading={loading}
-              loadingLabel="Signing In..."
+              loadingLabel={loadingStatus}
               onPress={onSubmit}
             />
+
+            {loading && loadingStatus !== 'Signing In...' ? (
+              <Text style={styles.statusHelper}>{loadingStatus}</Text>
+            ) : null}
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -116,5 +134,13 @@ const styles = StyleSheet.create({
     color: colors.destructive,
     marginBottom: spacing.md,
     ...typography.caption,
+  },
+  statusHelper: {
+    ...typography.caption,
+    fontSize: 13,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    fontStyle: 'italic',
   },
 });

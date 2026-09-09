@@ -19,6 +19,7 @@ class Users(Base):
     google_sub = Column(String(255), unique=True, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    password_hash = Column(String(255), nullable=True)
 
 
 class CabQuery(Base):
