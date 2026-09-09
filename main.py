@@ -56,11 +56,63 @@ async def add_security_headers(request: Request, call_next):
 async def unhandled_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, (HTTPException, StarletteHTTPException, RequestValidationError)):
         raise exc
-    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    logger.exception("Unhandled exception on %s %s: %s", request.method, request.url.path, exc)
+    
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        
     return JSONResponse(
         status_code=500,
-        content={"detail": "An unexpected server error occurred. Please try again later."}
+        content={"detail": "An unexpected server error occurred. Please try again later."},
+        headers=headers,
     )
+
+@app.on_event("startup")
+def startup_db_migrations():
+    """Ensures all tables and missing columns exist across any SQL dialect (PostgreSQL, MySQL, SQLite)."""
+    try:
+        from model import Base
+        from database import engine
+        from sqlalchemy import inspect, text
+        
+        # 1. Create any missing tables (e.g. notifications, hackfind, etc.)
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database Base.metadata.create_all completed.")
+        
+        # 2. Automatically sync missing columns on existing tables
+        inspector = inspect(engine)
+        if "users" in inspector.get_table_names():
+            existing_cols = {c["name"].lower() for c in inspector.get_columns("users")}
+            is_postgres = "postgres" in str(engine.url).lower()
+            
+            with engine.connect() as conn:
+                if "is_active" not in existing_cols:
+                    if is_postgres:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"))
+                    else:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"))
+                    logger.info("Migrated users table: added is_active")
+                    
+                if "created_at" not in existing_cols:
+                    if is_postgres:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                    else:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+                    logger.info("Migrated users table: added created_at")
+                    
+                if "password_hash" not in existing_cols:
+                    if is_postgres:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"))
+                    else:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+                    logger.info("Migrated users table: added password_hash")
+                    
+                conn.commit()
+    except Exception as e:
+        logger.warning("Startup database migration check encountered non-fatal error: %s", e)
 
 # Configure allowed origins for CORS
 # Supports local development (Expo Web :8081/:19006, Vite/React :3000, FastAPI :8000),
