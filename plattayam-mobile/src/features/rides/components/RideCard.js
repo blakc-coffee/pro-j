@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#16a34a',
+    backgroundColor: colors.success,
   },
   bulletLine: {
     width: 1.5,
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.destructive,
   },
   locationsColumn: {
     flex: 1,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#16a34a',
+    color: colors.success,
     letterSpacing: 0.5,
   },
   statusTextFull: {

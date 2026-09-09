@@ -44,7 +44,7 @@ export default function FormInput({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#999388"
+          placeholderTextColor={colors.inputPlaceholder || colors.mutedForeground}
           secureTextEntry={secureTextEntry}
           editable={editable}
           keyboardType={keyboardType}
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f7f5f2', // Soft warm cream fill matching reference
+    backgroundColor: colors.input,
     borderWidth: 1,
-    borderColor: '#e2ddd5',
+    borderColor: colors.inputBorder,
     borderRadius: radius.sm,
     paddingHorizontal: 12,
     minHeight: 44,

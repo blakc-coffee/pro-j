@@ -57,7 +57,7 @@ export default function Avatar({ name, size = 44, style }) {
 
 const styles = StyleSheet.create({
   avatar: {
-    backgroundColor: '#eee9e2',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },

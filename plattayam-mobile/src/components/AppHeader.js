@@ -12,6 +12,7 @@ export default function AppHeader({
   onBackPress,
   actionLabel,
   onAction,
+  rightAction,
 }) {
   const insets = useSafeAreaInsets();
   const handleBack = onBack || onBackPress;
@@ -38,7 +39,9 @@ export default function AppHeader({
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
 
-        {onAction ? (
+        {rightAction ? (
+          <View style={styles.rightActionWrap}>{rightAction}</View>
+        ) : onAction ? (
           <Pressable
             onPress={onAction}
             style={styles.actionButton}
@@ -75,6 +78,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   actionButton: {
+    minWidth: 64,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  rightActionWrap: {
     minWidth: 64,
     minHeight: 44,
     justifyContent: 'center',

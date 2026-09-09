@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/context/AuthContext';
 import { NotificationProvider } from './src/context/NotificationContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { warmUpServer } from './src/services/api';
 
@@ -44,6 +45,21 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
   };
 }
 
+function AppInner() {
+  const { themeMode, isDark } = useTheme();
+
+  return (
+    <AuthProvider>
+      <NotificationProvider>
+        <NavigationContainer key={themeMode}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <RootNavigator />
+        </NavigationContainer>
+      </NotificationProvider>
+    </AuthProvider>
+  );
+}
+
 export default function App() {
   useEffect(() => {
     warmUpServer();
@@ -51,14 +67,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <NotificationProvider>
-          <NavigationContainer>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </NavigationContainer>
-        </NotificationProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AppInner />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

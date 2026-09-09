@@ -19,6 +19,8 @@ import {
 } from '../features/rides/services/rides';
 import { formatFullName } from '../utils/format';
 
+import ThemeToggle from '../components/ThemeToggle';
+
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const { user, logout } = useAuth();
@@ -119,6 +121,7 @@ export default function ProfileScreen() {
           title="Profile"
           subtitle="Your campus account & activity"
           onBack={() => navigation.goBack()}
+          rightAction={<ThemeToggle />}
         />
 
         <ScrollView contentContainerStyle={styles.body}>

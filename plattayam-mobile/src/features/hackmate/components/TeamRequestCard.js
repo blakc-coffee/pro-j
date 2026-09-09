@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: colors.foreground,
-    backgroundColor: '#f7f5f2',
+    backgroundColor: colors.surfaceAlt,
     padding: 8,
     borderRadius: radius.sm,
     marginBottom: 12,

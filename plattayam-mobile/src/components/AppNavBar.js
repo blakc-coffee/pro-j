@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   bellGraphic: {
     width: 24,
     height: 24,
-    tintColor: '#334155',
+    tintColor: colors.bellIcon || colors.mutedForeground,
   },
   badge: {
     position: 'absolute',
@@ -155,11 +155,11 @@ const styles = StyleSheet.create({
     width: 17,
     height: 17,
     borderRadius: 8.5,
-    backgroundColor: '#ec003f',
+    backgroundColor: colors.badgeNotification || '#ec003f',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
-    shadowColor: '#ec003f',
+    shadowColor: colors.badgeNotification || '#ec003f',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.35,
     shadowRadius: 2,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     borderRadius: 8.5,
   },
   badgeText: {
-    color: '#ffffff',
+    color: colors.badgeNotificationText || '#ffffff',
     fontSize: 10,
     fontWeight: '700',
     lineHeight: 12,
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#ffffff',
+    color: colors.avatarText || '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },

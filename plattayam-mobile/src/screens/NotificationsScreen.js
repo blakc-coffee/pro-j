@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   unreadCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     borderColor: colors.primary,
     borderLeftWidth: 4,
     borderLeftColor: colors.primary,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radius.full,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
