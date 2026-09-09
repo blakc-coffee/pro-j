@@ -14,8 +14,45 @@ JWT_SECRET = os.getenv("JWT_SECRET")
 if not JWT_SECRET:
     raise ValueError("JWT_SECRET environment variable not set")
 
+import hashlib
+import hmac
+import secrets
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+# Mobile session duration default: 90 days (129,600 minutes)
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "129600"))
+
+def hash_password(password: str) -> str:
+    """Hash a password using PBKDF2-HMAC-SHA256 with a unique 16-byte random salt."""
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100000,
+    )
+    return f"pbkdf2:sha256:100000${salt}${key.hex()}"
+
+def verify_password(password: str, stored_hash: str | None) -> bool:
+    """Verify a password against a stored PBKDF2 hash using constant-time comparison."""
+    if not stored_hash or not isinstance(stored_hash, str):
+        return False
+    try:
+        algorithm_info, salt, key_hex = stored_hash.split("$")
+        parts = algorithm_info.split(":")
+        if len(parts) != 3 or parts[0] != "pbkdf2":
+            return False
+        hash_algo = parts[1]
+        iterations = int(parts[2])
+        computed = hashlib.pbkdf2_hmac(
+            hash_algo,
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations,
+        )
+        return hmac.compare_digest(computed.hex(), key_hex)
+    except Exception:
+        return False
 
 def create_access_token(data: dict):
     to_encode = data.copy()
