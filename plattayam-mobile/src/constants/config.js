@@ -37,5 +37,16 @@ export function getApiBaseUrl() {
     return `http://${host}:${API_PORT}`;
   }
 
+  // Automatic fallback for hosted web deployments (e.g. Vercel)
+  if (
+    typeof window !== 'undefined' &&
+    window.location &&
+    window.location.hostname &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
+    return 'https://plattayam.onrender.com';
+  }
+
   return `http://127.0.0.1:${API_PORT}`;
 }
