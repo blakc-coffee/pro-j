@@ -17,6 +17,7 @@ __pycache__/
 # Frameworks & Tooling
 .expo/
 .claude/
+.pytest_cache/
 AGENTS.md
 LICENSE
 CLAUDE.md
