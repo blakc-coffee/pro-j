@@ -95,6 +95,13 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     user = db.query(Users).filter(Users.user_id == uid).first()
     if user is None:
         raise credentials_exception
+    token_v = payload.get("v")
+    if token_v is not None and token_v != getattr(user, "token_version", 1):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been terminated. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     if getattr(user, "is_active", True) is False:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -111,7 +118,10 @@ def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depend
         user_id: str = payload.get("sub")
         if user_id is None:
             return None
-        return db.query(Users).filter(Users.user_id == int(user_id)).first()
+        user = db.query(Users).filter(Users.user_id == int(user_id)).first()
+        if user and payload.get("v") is not None and payload.get("v") != getattr(user, "token_version", 1):
+            return None
+        return user
     except Exception:
         return None
 

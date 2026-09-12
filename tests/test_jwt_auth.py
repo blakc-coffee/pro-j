@@ -178,3 +178,36 @@ def test_cab_search():
     res = client.get("/cab-queries/1/requests", headers=headers_u1)
     assert res.status_code == 200
     assert len(res.json()) == 1
+
+def test_server_side_logout_and_session_revocation():
+    """Verify that calling /auth/logout increments token_version and invalidates the previous JWT."""
+    # 1. Generate token with version 1
+    t1 = create_access_token({"sub": "1", "v": 1})
+    h1 = {"Authorization": f"Bearer {t1}"}
+
+    # Verify token works
+    res_valid = client.get("/users/me/cab-queries", headers=h1)
+    assert res_valid.status_code == 200
+
+    # 2. Call server-side logout endpoint
+    res_logout = client.post("/auth/logout", headers=h1)
+    assert res_logout.status_code == 200
+    assert res_logout.json()["status"] == "ok"
+
+    # 3. Old token must now be rejected immediately!
+    res_revoked = client.get("/users/me/cab-queries", headers=h1)
+    assert res_revoked.status_code == 401
+    assert "terminated" in res_revoked.json()["detail"].lower()
+
+    # 4. New token with updated version must succeed
+    db = TestingSessionLocal()
+    user = db.query(Users).filter(Users.user_id == 1).first()
+    new_v = user.token_version
+    assert new_v > 1
+    db.close()
+
+    t2 = create_access_token({"sub": "1", "v": new_v})
+    h2 = {"Authorization": f"Bearer {t2}"}
+    res_relogin = client.get("/users/me/cab-queries", headers=h2)
+    assert res_relogin.status_code == 200
+

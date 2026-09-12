@@ -109,6 +109,13 @@ def startup_db_migrations():
                     else:
                         conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
                     logger.info("Migrated users table: added password_hash")
+
+                if "token_version" not in existing_cols:
+                    if is_postgres:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1"))
+                    else:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN token_version INT NOT NULL DEFAULT 1"))
+                    logger.info("Migrated users table: added token_version")
                     
                 conn.commit()
     except Exception as e:
@@ -213,7 +220,7 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
 
         onboarding_required = user.roll_no is None or user.gender is None or user.phone_no is None
         
-        access_token = create_access_token({"sub": str(user.user_id)})
+        access_token = create_access_token({"sub": str(user.user_id), "v": getattr(user, "token_version", 1)})
         
         return AuthResponse(
             access_token=access_token,
@@ -251,7 +258,7 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
             if getattr(user, "is_active", True) is False:
                 raise HTTPException(status_code=403, detail="Inactive user account")
             onboarding_required = user.gender is None or user.phone_no is None
-            access_token = create_access_token({"sub": str(user.user_id)})
+            access_token = create_access_token({"sub": str(user.user_id), "v": getattr(user, "token_version", 1)})
             return AuthResponse(
                 access_token=access_token,
                 user_id=user.user_id,
@@ -344,7 +351,7 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
             raise HTTPException(status_code=403, detail="Inactive user account")
 
         onboarding_required = user.gender is None or user.phone_no is None
-        access_token = create_access_token({"sub": str(user.user_id)})
+        access_token = create_access_token({"sub": str(user.user_id), "v": getattr(user, "token_version", 1)})
         
         return AuthResponse(
             access_token=access_token,
@@ -357,6 +364,13 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
         
     except std_requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"LMS connection error: {str(e)}")
+
+@app.post("/auth/logout")
+def auth_logout(db=Depends(get_db), current_user: Users = Depends(get_current_user)):
+    """Server-side session revocation: increments token_version to invalidate all issued JWT tokens."""
+    current_user.token_version = (getattr(current_user, "token_version", 1) or 1) + 1
+    db.commit()
+    return {"status": "ok", "message": "Successfully logged out. Session revoked on server."}
 
 
 def create_notification(db, user_id: int, title: str, message: str, notif_type: str, reference_id: str | None = None):

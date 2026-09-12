@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getTokenRemainingMs, isTokenExpired, setOnUnauthorized } from '../services/api';
-import { loginRequest } from '../services/auth';
+import { loginRequest, logoutRequest } from '../services/auth';
 
 const STORAGE_KEY = 'plattayam.user';
 const AuthContext = createContext(null);
@@ -12,6 +12,9 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false);
 
   const logout = useCallback(async () => {
+    try {
+      await logoutRequest();
+    } catch {}
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch {}

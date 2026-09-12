@@ -1,11 +1,5 @@
 import Constants from 'expo-constants';
 
-/**
- * The FastAPI backend currently hardcodes this user on every protected-looking route.
- * The mobile app must use the same id until the backend exposes a real current-user API.
- */
-export const CURRENT_USER_ID = 1;
-
 export const API_PORT = 8000;
 
 function hostFromExpo() {

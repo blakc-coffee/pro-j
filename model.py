@@ -20,6 +20,7 @@ class Users(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     password_hash = Column(String(255), nullable=True)
+    token_version = Column(Integer, default=1, nullable=False)
 
 
 class CabQuery(Base):

@@ -6,3 +6,9 @@ export function loginRequest(roll_no, password) {
     body: JSON.stringify({ email_id: roll_no, password }),
   });
 }
+
+export function logoutRequest() {
+  return apiRequest('/auth/logout', {
+    method: 'POST',
+  });
+}
