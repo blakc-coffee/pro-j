@@ -1,4 +1,4 @@
-﻿# test_injection.ps1 - Automated Injection and Boundary Test Suite for Plattayam API
+# test_injection.ps1 - Automated Injection and Boundary Test Suite for Plattayam API
 $ErrorActionPreference = "Continue"
 
 $tests = @(
