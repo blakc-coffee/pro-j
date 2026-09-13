@@ -74,7 +74,7 @@ export default function LoginScreen() {
               value={rollNo}
               onChangeText={setRollNo}
               autoCapitalize="none"
-              placeholder="e.g. 2023110001"
+              placeholder="2023110001"
             />
 
             <FormInput

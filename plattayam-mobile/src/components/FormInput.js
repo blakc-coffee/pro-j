@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { colors } from '../constants/colors';
 import { radius, spacing } from '../constants/spacing';
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: colors.foreground,
-    fontSize: 14,
+    fontSize: Platform.OS === 'web' ? 16 : 14,
     lineHeight: 20,
     paddingVertical: 8,
   },

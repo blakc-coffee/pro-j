@@ -23,6 +23,7 @@ import { typography } from '../../../constants/typography';
 import { useAuth } from '../../../context/AuthContext';
 import { getPerson, inviteCandidateToTeam, listMyTeams } from '../services/hackfind';
 import { formatFullName } from '../../../utils/format';
+import { handleContactPress } from '../../../utils/contact';
 import AvailabilityBadge, { normalizeAvailabilityStatus } from '../components/AvailabilityBadge';
 
 export default function CandidateProfileScreen({ navigation, route }) {
@@ -193,7 +194,13 @@ export default function CandidateProfileScreen({ navigation, route }) {
                 {person.contact ? (
                   <View style={styles.section}>
                     <Text style={styles.sectionLabel}>Contact</Text>
-                    <Text style={styles.sectionBody}>{person.contact}</Text>
+                    <Pressable
+                      onPress={() => handleContactPress(person.contact)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Contact candidate: ${person.contact}`}
+                    >
+                      <Text style={[styles.sectionBody, styles.clickableText]}>{person.contact}</Text>
+                    </Pressable>
                   </View>
                 ) : null}
               </Card>
@@ -204,13 +211,22 @@ export default function CandidateProfileScreen({ navigation, route }) {
                     label="Edit Profile Card"
                     tone="primary"
                     onPress={() =>
-                      navigation?.navigate('CreateProfileCard', { initialProfile: person })
+                      navigation.navigate('CreateProfileCard', {
+                        isEditing: true,
+                        existingProfile: person,
+                      })
                     }
                   />
                 ) : (
                   <>
                     <PrimaryButton
-                      label="Invite to Your Team"
+                      label={
+                        isInviting
+                          ? 'Inviting...'
+                          : isOpen
+                          ? 'Invite to Team'
+                          : 'Not Looking for Team'
+                      }
                       tone="primary"
                       disabled={!isOpen}
                       onPress={openInviteModal}
@@ -221,9 +237,7 @@ export default function CandidateProfileScreen({ navigation, route }) {
                         <PrimaryButton
                           label={`Contact: ${person.contact}`}
                           tone="secondary"
-                          onPress={() => {
-                            Alert.alert('Contact Candidate', `You can reach ${person.name} at:\n${person.contact}`);
-                          }}
+                          onPress={() => handleContactPress(person.contact)}
                         />
                       </View>
                     ) : null}
@@ -411,6 +425,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.foreground,
+  },
+  clickableText: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
   tagList: {
     ...typography.body,

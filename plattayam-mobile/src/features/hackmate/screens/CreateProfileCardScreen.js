@@ -172,35 +172,35 @@ export default function CreateProfileCardScreen() {
 
               <FormInput
                 label="Primary Role / Title *"
-                placeholder="e.g. Frontend Developer, AI/ML Researcher"
+                placeholder="Frontend Developer, AI/ML Researcher"
                 value={role}
                 onChangeText={setRole}
               />
 
               <FormInput
                 label="Target Hackathon"
-                placeholder="e.g. Smart India Hackathon 2026 (or leave blank for any)"
+                placeholder="Smart India Hackathon 2026 (or leave blank for any)"
                 value={hackathon}
                 onChangeText={setHackathon}
               />
 
               <FormInput
                 label="Key Skills (comma-separated) *"
-                placeholder="e.g. React Native, TypeScript, UI Design"
+                placeholder="React Native, TypeScript, UI Design"
                 value={skills}
                 onChangeText={setSkills}
               />
 
               <FormInput
                 label="Tech Stack (comma-separated)"
-                placeholder="e.g. FastAPI, Docker, Tailwind CSS, PyTorch"
+                placeholder="FastAPI, Docker, Tailwind CSS, PyTorch"
                 value={techStack}
                 onChangeText={setTechStack}
               />
 
               <FormInput
                 label="Experience Level"
-                placeholder="e.g. 2+ years React, Built 3 hackathon projects"
+                placeholder="2+ years React, Built 3 hackathon projects"
                 value={experience}
                 onChangeText={setExperience}
               />

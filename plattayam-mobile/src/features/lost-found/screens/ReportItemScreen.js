@@ -392,7 +392,7 @@ export default function ReportItemScreen() {
           <Card padding="lg" style={styles.sectionCard}>
             <FormInput
               label="Item Name *"
-              placeholder="e.g. Black Sony Headphones"
+              placeholder="Black Sony Headphones"
               value={title}
               onChangeText={setTitle}
               error={errors.title}
@@ -428,7 +428,7 @@ export default function ReportItemScreen() {
 
             <FormInput
               label="Location *"
-              placeholder="e.g. Central Library, 2nd Floor"
+              placeholder="Central Library, 2nd Floor"
               value={location}
               onChangeText={setLocation}
               error={errors.location}
@@ -637,7 +637,7 @@ export default function ReportItemScreen() {
 
             <FormInput
               label="Contact Info (Optional)"
-              placeholder="e.g. Phone number, campus email, room no."
+              placeholder="Phone number, campus email, room no."
               value={contactInfo}
               onChangeText={setContactInfo}
               helperText="Campus members will see this to reach out to you."

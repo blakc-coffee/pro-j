@@ -32,6 +32,7 @@ import {
 } from '../services/hackfind';
 import TeamRequestCard from '../components/TeamRequestCard';
 import { formatFullName } from '../../../utils/format';
+import { handleContactPress } from '../../../utils/contact';
 
 export default function TeamDetailsScreen() {
   const navigation = useNavigation();
@@ -359,7 +360,15 @@ export default function TeamDetailsScreen() {
                 {team.contact ? (
                   <View style={styles.section}>
                     <Text style={styles.sectionLabel}>Leader Contact</Text>
-                    <Text style={styles.contactText}>{team.contact}</Text>
+                    <Pressable
+                      onPress={() => handleContactPress(team.contact)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Contact leader: ${team.contact}`}
+                    >
+                      <Text style={[styles.contactText, styles.clickableContact]}>
+                        {team.contact}
+                      </Text>
+                    </Pressable>
                   </View>
                 ) : null}
               </Card>
@@ -538,6 +547,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontSize: 14,
     color: colors.foreground,
+  },
+  clickableContact: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
   leaderRow: {
     flexDirection: 'row',

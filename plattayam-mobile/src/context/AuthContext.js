@@ -113,14 +113,32 @@ export function AuthProvider({ children }) {
     setUser(data);
   }
 
+  const updateUser = useCallback(async (partial) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...partial };
+      const serialized = JSON.stringify(updated);
+      try {
+        AsyncStorage.setItem(STORAGE_KEY, serialized);
+      } catch {}
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, serialized);
+        } catch {}
+      }
+      return updated;
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
       ready,
       login,
       logout,
+      updateUser,
     }),
-    [user, ready, logout]
+    [user, ready, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

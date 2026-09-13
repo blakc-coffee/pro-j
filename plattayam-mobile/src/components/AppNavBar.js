@@ -13,7 +13,17 @@ const bellIconSource = require('../../assets/bell-icon.png');
 export default function AppNavBar() {
   const navigation = useNavigation();
   const { user } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, fetchNotifications } = useNotifications();
+
+  // Instant notification refresh whenever navbar screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (typeof fetchNotifications === 'function') {
+        fetchNotifications(true);
+      }
+    });
+    return unsubscribe;
+  }, [navigation, fetchNotifications]);
 
   // Pulse animation when unreadCount increases
   const badgeScale = useRef(new Animated.Value(1)).current;

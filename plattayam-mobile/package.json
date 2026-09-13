@@ -24,8 +24,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "build": "expo export -p web",
-    "build:web": "expo export -p web"
+    "build": "expo export -p web && node scripts/patch-web.js",
+    "build:web": "expo export -p web && node scripts/patch-web.js"
   },
   "private": true,
   "devDependencies": {

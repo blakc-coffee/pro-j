@@ -116,6 +116,18 @@ def startup_db_migrations():
                     else:
                         conn.execute(text("ALTER TABLE users ADD COLUMN token_version INT NOT NULL DEFAULT 1"))
                     logger.info("Migrated users table: added token_version")
+
+                if "full_name" not in existing_cols:
+                    if is_postgres:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(200)"))
+                    else:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(200)"))
+                    logger.info("Migrated users table: added full_name")
+
+                try:
+                    conn.execute(text("UPDATE users SET full_name = name WHERE full_name IS NULL AND name IS NOT NULL"))
+                except Exception as e:
+                    logger.warning("Backfill full_name error: %s", e)
                     
                 conn.commit()
     except Exception as e:
@@ -207,6 +219,7 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
             user = Users(
                 email_id=email,
                 name=name,
+                full_name=name,
                 google_sub=google_sub,
                 roll_no=inferred_roll_no,
                 gender=None,
@@ -217,6 +230,9 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
             db.add(user)
             db.commit()
             db.refresh(user)
+        elif not getattr(user, "full_name", None):
+            user.full_name = user.name or name
+            db.commit()
 
         onboarding_required = user.roll_no is None or user.gender is None or user.phone_no is None
         
@@ -228,6 +244,7 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
             roll_no=user.roll_no,
             email_id=user.email_id,
             name=user.name,
+            full_name=getattr(user, "full_name", None) or user.name,
             onboarding_required=onboarding_required
         )
     except ValueError:
@@ -265,6 +282,7 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
                 roll_no=user.roll_no,
                 email_id=user.email_id,
                 name=user.name,
+                full_name=getattr(user, "full_name", None) or user.name,
                 onboarding_required=onboarding_required,
             )
 
@@ -330,6 +348,7 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
                 roll_no=username,
                 email_id=email,
                 name=name or username,
+                full_name=name or username,
                 gender=None,
                 phone_no=None,
                 password_hash=new_hash,
@@ -340,6 +359,8 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
             db.refresh(user)
         else:
             user.password_hash = new_hash
+            if name and not getattr(user, "full_name", None):
+                user.full_name = name
             if name and not user.name:
                 user.name = name
             if email and not user.email_id:
@@ -359,6 +380,7 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
             roll_no=user.roll_no,
             email_id=user.email_id,
             name=user.name,
+            full_name=getattr(user, "full_name", None) or user.name,
             onboarding_required=onboarding_required
         )
         
@@ -517,6 +539,46 @@ def update_my_profile(
 ):
     if update_data.phone_no is not None:
         current_user.phone_no = update_data.phone_no.strip() or None
+
+    if update_data.name is not None:
+        chosen_name = update_data.name.strip()
+        if not chosen_name:
+            raise HTTPException(status_code=400, detail="Display name cannot be empty")
+
+        if not current_user.full_name:
+            current_user.full_name = current_user.name
+
+        full_source = current_user.full_name or current_user.name or ""
+        roll_prefix_match = re.match(r"^([0-9a-zA-Z]{10,12})\s+(.+)$", full_source)
+        if roll_prefix_match:
+            full_source = roll_prefix_match.group(2)
+
+        source_tokens = [t.strip(".,;:").lower() for t in full_source.split() if t.strip(".,;:")]
+        chosen_tokens = [t.strip(".,;:") for t in chosen_name.split() if t.strip(".,;:")]
+
+        if not chosen_tokens:
+            raise HTTPException(status_code=400, detail="Please select at least one name part")
+
+        for ct in chosen_tokens:
+            if ct.lower() not in source_tokens:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"'{ct}' is not part of your registered legal name",
+                )
+
+        has_full_name = any(len(ct) > 1 for ct in chosen_tokens)
+        if not has_full_name:
+            raise HTTPException(
+                status_code=400,
+                detail="An initial cannot be your sole display name. Please select at least one full name.",
+            )
+
+        formatted_tokens = [
+            (t.upper() if len(t) == 1 else (t[:1].upper() + t[1:].lower()))
+            for t in chosen_tokens
+        ]
+        current_user.name = " ".join(formatted_tokens)
+
     db.commit()
     db.refresh(current_user)
     return current_user

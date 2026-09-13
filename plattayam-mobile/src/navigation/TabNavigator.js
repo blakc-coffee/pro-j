@@ -1,5 +1,6 @@
-import { Image, StyleSheet } from 'react-native';
+import { Image, Platform, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CabsScreen from '../features/rides/screens/CabsScreen';
 import LostFoundScreen from '../features/lost-found/screens/LostFoundScreen';
@@ -14,6 +15,9 @@ const hackmateIcon = require('../../assets/icon-hackmate.png');
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'web' ? 18 : 12);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -23,9 +27,9 @@ export default function TabNavigator() {
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 52 + bottomInset,
+          paddingBottom: bottomInset,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           ...typography.caption,

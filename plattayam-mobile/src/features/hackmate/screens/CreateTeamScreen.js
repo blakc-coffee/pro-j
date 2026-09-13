@@ -109,14 +109,12 @@ export default function CreateTeamScreen() {
 
               <FormInput
                 label="Team Name *"
-                placeholder="e.g. AlgoRhythm, Web3 Mavericks"
                 value={name}
                 onChangeText={setName}
               />
 
               <FormInput
                 label="Target Hackathon *"
-                placeholder="e.g. Smart India Hackathon 2026, HackNITR"
                 value={hackathon}
                 onChangeText={setHackathon}
               />
@@ -140,7 +138,6 @@ export default function CreateTeamScreen() {
 
               <FormInput
                 label="Problem Statement / Theme"
-                placeholder="e.g. AI-driven traffic monitoring, AgriTech IoT"
                 value={problemStatement}
                 onChangeText={setProblemStatement}
               />
@@ -149,21 +146,21 @@ export default function CreateTeamScreen() {
 
               <FormInput
                 label="Skills Needed (comma-separated)"
-                placeholder="e.g. Frontend Dev, ML Engineer, UI/UX"
+                placeholder="Frontend Dev, ML Engineer, UI/UX"
                 value={skills}
                 onChangeText={setSkills}
               />
 
               <FormInput
                 label="Tech Stack (comma-separated)"
-                placeholder="e.g. React Native, FastAPI, PostgreSQL"
+                placeholder="React Native, FastAPI, PostgreSQL"
                 value={techStack}
                 onChangeText={setTechStack}
               />
 
               <FormInput
                 label="Leader Contact / Phone"
-                placeholder="e.g. 9876543210 or @telegram_handle"
+                placeholder="9876543210 or @telegram_handle"
                 value={contact}
                 onChangeText={setContact}
               />

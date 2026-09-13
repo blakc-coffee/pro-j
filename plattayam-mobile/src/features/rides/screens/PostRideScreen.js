@@ -226,7 +226,7 @@ export default function PostRideScreen() {
                   setFromLoc(text);
                   if (errors.fromLoc) setErrors((e) => ({ ...e, fromLoc: '' }));
                 }}
-                placeholder="e.g. Campus Gate 1, Hostel Block A"
+                placeholder="Campus Gate 1, Hostel Block A"
                 error={errors.fromLoc}
                 autoCapitalize="words"
               />
@@ -238,7 +238,7 @@ export default function PostRideScreen() {
                   setToLoc(text);
                   if (errors.toLoc) setErrors((e) => ({ ...e, toLoc: '' }));
                 }}
-                placeholder="e.g. Kottayam Railway Station, Airport"
+                placeholder="Kottayam Railway Station, Airport"
                 error={errors.toLoc}
                 autoCapitalize="words"
               />

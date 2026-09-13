@@ -17,6 +17,7 @@ import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { getUserProfile } from '../services/rides';
 import { formatFullName } from '../../../utils/format';
+import { handleEmailPress, handlePhonePress } from '../../../utils/contact';
 
 export default function UserProfileModal({ userId, visible, onClose }) {
   const [profile, setProfile] = useState(null);
@@ -125,15 +126,31 @@ export default function UserProfileModal({ userId, visible, onClose }) {
 
                 <View style={styles.divider} />
 
-                <View style={styles.infoCard}>
+                <Pressable
+                  style={styles.infoCard}
+                  onPress={() => phone && handlePhonePress(phone)}
+                  disabled={!phone}
+                  accessibilityRole="button"
+                  accessibilityLabel={phone ? `Call ${phone}` : 'Phone not available'}
+                >
                   <Text style={styles.infoLabel}>PHONE / CONTACT</Text>
-                  <Text style={styles.infoValue}>{phone || 'Not available'}</Text>
-                </View>
+                  <Text style={[styles.infoValue, phone ? styles.clickableValue : null]}>
+                    {phone || 'Not available'}
+                  </Text>
+                </Pressable>
 
-                <View style={styles.infoCard}>
+                <Pressable
+                  style={styles.infoCard}
+                  onPress={() => email && handleEmailPress(email)}
+                  disabled={!email}
+                  accessibilityRole="button"
+                  accessibilityLabel={email ? `Email ${email}` : 'Email not available'}
+                >
                   <Text style={styles.infoLabel}>EMAIL ADDRESS</Text>
-                  <Text style={styles.infoValue}>{email || 'Not available'}</Text>
-                </View>
+                  <Text style={[styles.infoValue, email ? styles.clickableValue : null]}>
+                    {email || 'Not available'}
+                  </Text>
+                </Pressable>
               </View>
             ) : null}
           </ScrollView>
@@ -292,6 +309,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.foreground,
+  },
+  clickableValue: {
+    color: colors.primary,
   },
   footer: {
     marginTop: spacing.md,

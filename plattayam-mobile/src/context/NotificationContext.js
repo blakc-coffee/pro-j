@@ -18,6 +18,7 @@ export function NotificationProvider({ children }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
 
   const fetchNotifications = useCallback(async (isSilent = false) => {
     if (!user) {
@@ -27,8 +28,13 @@ export function NotificationProvider({ children }) {
       return;
     }
 
-    if (isFetchingRef.current) return;
+    // Safety timeout: if previous fetch took > 5000ms, unlock
+    const now = Date.now();
+    if (isFetchingRef.current && now - lastFetchTimeRef.current < 5000) {
+      return;
+    }
     isFetchingRef.current = true;
+    lastFetchTimeRef.current = now;
 
     if (!isSilent) {
       setLoading(true);
@@ -65,6 +71,7 @@ export function NotificationProvider({ children }) {
   }, [fetchNotifications]);
 
   const markAsRead = useCallback(async (notificationId) => {
+    // Optimistic immediate UI update
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
     );
@@ -72,17 +79,20 @@ export function NotificationProvider({ children }) {
 
     try {
       await markNotificationAsRead(notificationId);
+      fetchNotifications(true);
     } catch {
       fetchNotifications(true);
     }
   }, [fetchNotifications]);
 
   const markAllAsRead = useCallback(async () => {
+    // Optimistic immediate UI update
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
 
     try {
       await markAllNotificationsAsRead();
+      fetchNotifications(true);
     } catch {
       fetchNotifications(true);
     }
@@ -93,13 +103,13 @@ export function NotificationProvider({ children }) {
     fetchNotifications(false);
   }, [fetchNotifications]);
 
-  // Reactive fast background polling (every 4 seconds)
+  // Reactive background polling (every 2.5 seconds for instant notification feedback)
   useEffect(() => {
     if (!user) return;
 
     const timer = setInterval(() => {
       fetchNotifications(true);
-    }, 4000);
+    }, 2500);
 
     return () => clearInterval(timer);
   }, [user, fetchNotifications]);

@@ -23,6 +23,7 @@ import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { useAuth } from '../../../context/AuthContext';
 import { formatDate, formatFullName } from '../../../utils/format';
+import { handleContactPress } from '../../../utils/contact';
 import {
   addMessage,
   deleteItem,
@@ -309,7 +310,16 @@ export default function ItemDetailsScreen() {
                 {item?.contact_info ? (
                   <View style={styles.contactContainer}>
                     <Text style={styles.contactLabel}>Contact Details:</Text>
-                    <Text style={styles.contactValueText}>{item.contact_info}</Text>
+                    <Pressable
+                      onPress={() => handleContactPress(item.contact_info)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Contact: ${item.contact_info}`}
+                      hitSlop={6}
+                    >
+                      <Text style={[styles.contactValueText, styles.clickableContactText]}>
+                        {item.contact_info}
+                      </Text>
+                    </Pressable>
                   </View>
                 ) : null}
               </View>
@@ -639,6 +649,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.foreground,
+  },
+  clickableContactText: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
   ownerCard: {
     backgroundColor: colors.card,

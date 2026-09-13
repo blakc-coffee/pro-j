@@ -10,6 +10,17 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { warmUpServer } from './src/services/api';
 
+// Prevent mobile auto-zoom resetting layout
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (meta) {
+    meta.setAttribute(
+      'content',
+      'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
+    );
+  }
+}
+
 // Polyfill Alert.alert for React Native Web so button callbacks and confirmations work
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
   Alert.alert = function (title, message, buttons) {

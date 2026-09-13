@@ -21,6 +21,7 @@ class Users(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     password_hash = Column(String(255), nullable=True)
     token_version = Column(Integer, default=1, nullable=False)
+    full_name = Column(String(200), nullable=True)
 
 
 class CabQuery(Base):
@@ -281,12 +282,14 @@ class AuthResponse(BaseModel):
     roll_no: str | None = None
     email_id: str | None = None
     name: str
+    full_name: str | None = None
     onboarding_required: bool
 
 class UserPublicOut(BaseModel):
     user_id: int
     roll_no: str | None = None
     name: str
+    full_name: str | None = None
     phone_no: str | None = None
     email_id: str | None = None
     gender: str | None = None
@@ -296,6 +299,7 @@ class UserPublicOut(BaseModel):
 
 class UserContactUpdate(BaseModel):
     phone_no: str | None = None
+    name: str | None = None
 
 
 class CabQueryOut(BaseModel):
