@@ -43,5 +43,6 @@ yarn-error.*
 test-results/
 playwright-report/
 e2e/screenshots/
+e2e/live_screenshots/
 
 
