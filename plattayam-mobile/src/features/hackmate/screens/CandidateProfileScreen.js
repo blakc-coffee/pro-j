@@ -42,6 +42,7 @@ export default function CandidateProfileScreen({ navigation, route }) {
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [teamsError, setTeamsError] = useState('');
   const [invitingTeamId, setInvitingTeamId] = useState(null);
+  const isInviting = !!invitingTeamId;
 
   const loadData = useCallback(async () => {
     if (!personId) return;

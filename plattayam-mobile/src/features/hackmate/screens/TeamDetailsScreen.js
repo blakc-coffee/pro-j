@@ -398,7 +398,7 @@ export default function TeamDetailsScreen() {
 
                   <PrimaryButton
                     label="Delete Team"
-                    tone="destructive"
+                    tone="destructiveOutline"
                     loading={actionBusy}
                     loadingLabel="Deleting..."
                     onPress={handleDeleteTeam}
@@ -411,7 +411,7 @@ export default function TeamDetailsScreen() {
                   <Text style={styles.memberStatusText}>YOU ARE A TEAM MEMBER</Text>
                   <PrimaryButton
                     label="Leave Team"
-                    tone="destructive"
+                    tone="destructiveOutline"
                     loading={actionBusy}
                     loadingLabel="Leaving..."
                     onPress={handleLeaveTeam}
@@ -597,13 +597,13 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   removeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-    backgroundColor: colors.destructiveSoft,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   removeBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.destructive,
   },

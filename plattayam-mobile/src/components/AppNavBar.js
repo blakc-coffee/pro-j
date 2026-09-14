@@ -7,6 +7,7 @@ import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 
 const bellIconSource = require('../../assets/bell-icon.png');
 
@@ -14,6 +15,9 @@ export default function AppNavBar() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { unreadCount, fetchNotifications } = useNotifications();
+  const { isDark } = useTheme();
+
+  const bellTint = isDark ? '#ffffff' : '#111827';
 
   // Instant notification refresh whenever navbar screen comes into focus
   useEffect(() => {
@@ -76,7 +80,7 @@ export default function AppNavBar() {
           <View style={styles.bellWrapper}>
             <Image
               source={bellIconSource}
-              style={styles.bellGraphic}
+              style={[styles.bellGraphic, { tintColor: bellTint }]}
               resizeMode="contain"
             />
             {unreadCount > 0 && (
@@ -156,7 +160,7 @@ const styles = StyleSheet.create({
   bellGraphic: {
     width: 24,
     height: 24,
-    tintColor: colors.bellIcon || colors.mutedForeground,
+    tintColor: colors.bellIcon || '#111827',
   },
   badge: {
     position: 'absolute',

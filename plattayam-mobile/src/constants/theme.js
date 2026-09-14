@@ -60,7 +60,7 @@ export const lightTheme = {
   ring: '#0061fe',
 
   // Special Chrome
-  bellIcon: '#334155',
+  bellIcon: '#111827',
   badgeNotification: '#ec003f',
   badgeNotificationText: '#ffffff',
   avatarBackground: '#0061fe',
@@ -132,7 +132,7 @@ export const darkTheme = {
   ring: '#9281f7',               // Iris Violet focus ring
 
   // Special Chrome
-  bellIcon: '#f0f0f0',
+  bellIcon: '#ffffff',
   badgeNotification: '#ff6465',   // Crimson badge
   badgeNotificationText: '#ffffff',
   avatarBackground: '#3b9eff',

@@ -245,23 +245,15 @@ export default function ProfileScreen() {
               ) : null}
             </View>
 
-            {/* Read-Only Legal Name */}
-            <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>Legal Name (Campus Record)</Text>
-              <Text style={styles.fieldValue}>{legalFullNameFormatted}</Text>
-            </View>
-
-            <View style={styles.divider} />
-
             {/* Display Name with Customizer */}
             <View style={styles.fieldSection}>
               {isEditingName ? (
                 <View style={styles.editSection}>
                   <View style={styles.fieldHeaderRow}>
-                    <Text style={styles.fieldLabel}>Choose Display Name</Text>
+                    <Text style={styles.fieldLabel}>Display Name</Text>
                   </View>
                   <Text style={styles.helperText}>
-                    Select which parts of your legal name to display publicly across Plattayam:
+                    Your record name will be <Text style={styles.boldSubtext}>{legalFullNameFormatted}</Text>. Select which parts to display:
                   </Text>
                   
                   <View style={styles.tokenChipsRow}>
@@ -285,7 +277,7 @@ export default function ProfileScreen() {
                               isSelected && styles.tokenChipTextSelected,
                             ]}
                           >
-                            {token} {isSelected ? '✓' : ''}
+                            {token}
                           </Text>
                         </Pressable>
                       );
@@ -635,6 +627,15 @@ const styles = StyleSheet.create({
   editSection: {
     marginTop: 2,
   },
+  legalNameSubtext: {
+    ...typography.caption,
+    color: colors.mutedForeground,
+    marginTop: 4,
+  },
+  boldSubtext: {
+    fontWeight: '600',
+    color: colors.foreground,
+  },
   helperText: {
     ...typography.caption,
     color: colors.mutedForeground,
@@ -649,7 +650,7 @@ const styles = StyleSheet.create({
   tokenChip: {
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,

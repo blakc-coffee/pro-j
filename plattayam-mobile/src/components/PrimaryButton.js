@@ -15,8 +15,9 @@ export default function PrimaryButton({
   textStyle,
 }) {
   const isOutline = tone === 'outline';
+  const isDestructiveOutline = tone === 'destructiveOutline';
 
-  const backgroundColor = isOutline
+  const backgroundColor = isOutline || isDestructiveOutline
     ? colors.card
     : tone === 'accent'
     ? colors.accent
@@ -28,6 +29,8 @@ export default function PrimaryButton({
 
   const textColor = isOutline
     ? colors.primary
+    : isDestructiveOutline
+    ? colors.destructive
     : tone === 'secondary'
     ? colors.foreground
     : tone === 'destructive'
@@ -42,6 +45,7 @@ export default function PrimaryButton({
         styles.button,
         { backgroundColor },
         isOutline && styles.outlineButton,
+        isDestructiveOutline && styles.destructiveOutlineButton,
         (disabled || loading) && styles.disabled,
         pressed && styles.pressed,
         style,
@@ -83,6 +87,10 @@ const styles = StyleSheet.create({
   outlineButton: {
     borderWidth: 1.5,
     borderColor: colors.primary,
+  },
+  destructiveOutlineButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   disabled: {
     opacity: 0.5,
