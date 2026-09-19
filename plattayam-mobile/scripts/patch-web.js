@@ -9,6 +9,7 @@ const htmlFile = path.join(distDir, 'index.html');
 if (fs.existsSync(publicDir) && fs.existsSync(distDir)) {
   const publicFiles = fs.readdirSync(publicDir);
   for (const file of publicFiles) {
+    if (file === 'index.html') continue;
     const srcPath = path.join(publicDir, file);
     const destPath = path.join(distDir, file);
     fs.copyFileSync(srcPath, destPath);
