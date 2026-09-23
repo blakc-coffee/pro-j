@@ -250,6 +250,90 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
+def extract_moodle_user_details(html: str, username: str) -> tuple[str | None, str | None]:
+    """
+    Robust multi-strategy parser that extracts (name, email) from Moodle HTML
+    across all campus themes:
+    - adaptable (Batch 2023, 2025)
+    - degrade (Batch 2024)
+    - academi (Batch 2026)
+    - Boost / Core Moodle
+    """
+    name = None
+    email = None
+
+    if not html:
+        return None, None
+
+    # Strategy 1: class="usertext..." (Used in Adaptable, Boost userbutton)
+    m = re.search(r'class="usertext[^>]*>\s*([^<]+)\s*<', html, re.I)
+    if m and m.group(1).strip():
+        name = m.group(1).strip()
+
+    # Strategy 2: User menu / dropdown name container in Degrade & Academi
+    if not name:
+        m = re.search(r'class="(?:\buser-name\b|\buser-fullname\b|\buserbutton\b)[^"]*"[^>]*>\s*(?:<[^>]+>\s*)*([^<]+?)\s*<', html, re.I)
+        if m and m.group(1).strip():
+            name = m.group(1).strip()
+
+    # Strategy 3: Standard Moodle logininfo anchor: <div class="logininfo">...<a href="...user/profile.php...">Name</a>
+    if not name:
+        m = re.search(r'class="logininfo"[^>]*>.*?<a[^>]*href="[^"]*user/(?:profile|view)\.php[^"]*"[^>]*>([^<]+)</a>', html, re.I | re.DOTALL)
+        if m and m.group(1).strip():
+            name = m.group(1).strip()
+
+    # Strategy 4: Profile link in navbar/header
+    if not name:
+        m = re.search(r'<a[^>]*href="[^"]*user/(?:profile|view)\.php\?id=\d+"[^>]*class="[^"]*(?:dropdown-toggle|user-link|dropdown-item)[^"]*"[^>]*>\s*(?:<[^>]+>\s*)*([^<]+?)\s*<', html, re.I)
+        if m and m.group(1).strip():
+            name = m.group(1).strip()
+
+    # Strategy 5: User picture image tag alt or title attribute
+    if not name:
+        m = re.search(r'<img[^>]*class="[^"]*userpicture[^"]*"[^>]*alt="([^"]+)"', html, re.I)
+        if not m:
+            m = re.search(r'<img[^>]*alt="([^"]+)"[^>]*class="[^"]*userpicture[^"]*"', html, re.I)
+        if not m:
+            m = re.search(r'<img[^>]*class="[^"]*userpicture[^"]*"[^>]*title="([^"]+)"', html, re.I)
+        if m and m.group(1).strip():
+            raw_alt = m.group(1).strip()
+            raw_alt = re.sub(r'^(?:Picture|Photo|Avatar|Image)\s+of\s+', '', raw_alt, flags=re.I).strip()
+            if raw_alt and raw_alt.lower() != 'default':
+                name = raw_alt
+
+    # Strategy 6: Profile page <h1> heading or page-header
+    if not name:
+        m = re.search(r'<div[^>]*class="[^"]*page-header-headings[^"]*"[^>]*>\s*<h1[^>]*>([^<]+)</h1>', html, re.I)
+        if not m:
+            m = re.search(r'<h1[^>]*class="[^"]*h2[^"]*"[^>]*>([^<]+)</h1>', html, re.I)
+        if not m:
+            m = re.search(r'<h1[^>]*>([^<]+)</h1>', html, re.I)
+        if m and m.group(1).strip():
+            candidate = m.group(1).strip()
+            if "dashboard" not in candidate.lower() and "login" not in candidate.lower() and "home" not in candidate.lower():
+                name = candidate
+
+    # Extract email from mailto
+    email_match = re.search(r'mailto:([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)', html)
+    if email_match:
+        email = email_match.group(1).strip().lower()
+
+    return name, email
+
+def format_moodle_names(raw_name: str | None, username: str) -> tuple[str, str]:
+    """
+    Returns (display_name, full_record_name).
+    Strips leading roll number prefix from display name (e.g. '2024BCS0042 ADITYA SHARMA' -> 'ADITYA SHARMA')
+    while preserving the full string for official college records.
+    """
+    if not raw_name or not raw_name.strip():
+        return username, username
+
+    full_name = raw_name.strip()
+    cleaned = re.sub(r'^[0-9]{4}[A-Za-z]{2,5}[0-9]{3,5}\s+', '', full_name).strip()
+    display_name = cleaned if cleaned else full_name
+    return display_name, full_name
+
 @app.post("/auth/login", response_model=AuthResponse)
 def auth_lms(creds: UserLogin, db=Depends(get_db)):
     username = creds.email_id.strip() if creds.email_id else ""
@@ -270,23 +354,35 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
             user = db.query(Users).filter(Users.roll_no == username).first()
         else:
             raise
+
     if user and getattr(user, "password_hash", None):
         if verify_password(password, user.password_hash):
             if getattr(user, "is_active", True) is False:
                 raise HTTPException(status_code=403, detail="Inactive user account")
-            onboarding_required = user.gender is None or user.phone_no is None
-            access_token = create_access_token({"sub": str(user.user_id), "v": getattr(user, "token_version", 1)})
-            return AuthResponse(
-                access_token=access_token,
-                user_id=user.user_id,
-                roll_no=user.roll_no,
-                email_id=user.email_id,
-                name=user.name,
-                full_name=getattr(user, "full_name", None) or user.name,
-                onboarding_required=onboarding_required,
-            )
+            
+            # Auto-repair check: if user was previously saved with their roll_no as their name,
+            # don't return the stale roll number; let it drop through to the Moodle fetch below to repair their name!
+            is_stale_name = False
+            if user.name:
+                clean_name = user.name.strip().lower()
+                clean_roll = (user.roll_no or username).strip().lower()
+                if clean_name == clean_roll:
+                    is_stale_name = True
 
-    # 2. LMS FALLBACK: For first-time sign-ins, or when user updated password on college LMS
+            if not is_stale_name:
+                onboarding_required = user.gender is None or user.phone_no is None
+                access_token = create_access_token({"sub": str(user.user_id), "v": getattr(user, "token_version", 1)})
+                return AuthResponse(
+                    access_token=access_token,
+                    user_id=user.user_id,
+                    roll_no=user.roll_no,
+                    email_id=user.email_id,
+                    name=user.name,
+                    full_name=getattr(user, "full_name", None) or user.name,
+                    onboarding_required=onboarding_required,
+                )
+
+    # 2. LMS FALLBACK: For first-time sign-ins, stale name repairs, or password updates on college LMS
     origin = "https://lmsug24.iiitkottayam.ac.in"
     if username.startswith("20") and len(username) >= 4:
         year_str = username[2:4]
@@ -322,33 +418,50 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
         if "loginerrormessage" in html2 or "Invalid login" in html2 or "name=\"logintoken\"" in html2:
             raise HTTPException(status_code=401, detail="Invalid credentials")
             
-        # 3. ELIMINATE REDUNDANT /my/ FETCH:
-        # If user already exists with name/email in DB, skip loading the heavy /my/ dashboard!
+        # 3. EXTRACT PROFILE WITH MULTI-THEME FALLBACKS:
+        # Check if user needs Moodle profile fetch:
+        # Either user doesn't exist, has no name, OR their stored name is currently just their roll number
+        user_has_stale_roll_name = False
+        if user and user.name:
+            clean_name = user.name.strip().lower()
+            clean_roll = (user.roll_no or username).strip().lower()
+            if clean_name == clean_roll:
+                user_has_stale_roll_name = True
+
         name = None
         email = None
-        if not user or not user.name:
-            resp3 = session.get(f"{origin}/my/", timeout=10)
-            resp3.raise_for_status()
-            html3 = resp3.text
-            
-            name_match = re.search(r'class="usertext[^>]*>\s*([^<]+)\s*<', html3)
-            name = name_match.group(1).strip() if name_match else None
-            
+        if not user or not user.name or user_has_stale_roll_name:
+            # 3a. Try /my/ dashboard
+            try:
+                resp3 = session.get(f"{origin}/my/", timeout=10)
+                if getattr(resp3, "status_code", 200) < 400:
+                    name, email = extract_moodle_user_details(resp3.text, username)
+            except Exception as e:
+                logger.warning("Error loading /my/ for %s: %s", username, e)
+
+            # 3b. Fallback to /user/profile.php if name still not extracted
             if not name:
-                 name_match = re.search(r'userpicture.*?alt="Picture of ([^"]+)"', html3)
-                 name = name_match.group(1).strip() if name_match else None
-                 
-            email_match = re.search(r'mailto:([^"]+)', html3)
-            email = email_match.group(1) if email_match else None
+                try:
+                    resp_prof = session.get(f"{origin}/user/profile.php", timeout=8)
+                    if getattr(resp_prof, "status_code", 200) < 400:
+                        name_p, email_p = extract_moodle_user_details(resp_prof.text, username)
+                        name = name or name_p
+                        email = email or email_p
+                except Exception as e:
+                    logger.warning("Profile page fallback failed for %s: %s", username, e)
+
+            if not email:
+                email = f"{username.lower()}@iiitkottayam.ac.in"
         
-        # 4. SECURELY CACHE PASSWORD HASH FOR INSTANT FUTURE LOGINS
+        # 4. SECURELY CACHE PASSWORD HASH AND NAMES
+        display_name, full_record_name = format_moodle_names(name, username)
         new_hash = hash_password(password)
         if not user:
             user = Users(
                 roll_no=username,
                 email_id=email,
-                name=name or username,
-                full_name=name or username,
+                name=display_name,
+                full_name=full_record_name,
                 gender=None,
                 phone_no=None,
                 password_hash=new_hash,
@@ -359,10 +472,12 @@ def auth_lms(creds: UserLogin, db=Depends(get_db)):
             db.refresh(user)
         else:
             user.password_hash = new_hash
-            if name and not getattr(user, "full_name", None):
-                user.full_name = name
-            if name and not user.name:
-                user.name = name
+            # Auto-repair name if we recovered their real human name
+            if display_name and display_name.lower() != username.lower():
+                user.name = display_name
+                user.full_name = full_record_name
+            elif full_record_name and not getattr(user, "full_name", None):
+                user.full_name = full_record_name
             if email and not user.email_id:
                 user.email_id = email
             db.commit()

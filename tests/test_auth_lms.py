@@ -144,3 +144,105 @@ def test_missing_logintoken(mock_session_cls):
 def test_missing_credentials():
     response = client.post("/auth/login", json={"email_id": "", "password": ""})
     assert response.status_code == 400
+
+@patch("main.std_requests.Session")
+def test_batch_2024_degrade_theme_login(mock_session_cls):
+    """Verify Batch 2024 Degrade theme extracts name and strips roll number prefix."""
+    mock_session = MagicMock()
+    mock_session_cls.return_value = mock_session
+
+    degrade_html = '''
+    <div class="user-menu-wrapper">
+        <span class="user-name">2024BCS0042 ADITYA SHARMA</span>
+        <img src="pic.jpg" class="userpicture" alt="2024BCS0042 ADITYA SHARMA" />
+    </div>
+    <a href="mailto:2024bcs0042@iiitkottayam.ac.in">Email</a>
+    '''
+    mock_session.get.side_effect = [
+        MockResponse('<input type="hidden" name="logintoken" value="fake_token">'),
+        MockResponse(degrade_html)
+    ]
+    mock_session.post.return_value = MockResponse('Dashboard <a href="logout.php">Logout</a>')
+
+    response = client.post("/auth/login", json={"email_id": "2024BCS0042", "password": "password123"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "ADITYA SHARMA"
+    assert data["full_name"] == "2024BCS0042 ADITYA SHARMA"
+    assert data["roll_no"] == "2024BCS0042"
+    mock_session.get.assert_any_call("https://lmsug24.iiitkottayam.ac.in/login/index.php", timeout=10)
+
+@patch("main.std_requests.Session")
+def test_batch_2026_academi_theme_login(mock_session_cls):
+    """Verify Batch 2026 Academi theme extracts name from logininfo anchor."""
+    mock_session = MagicMock()
+    mock_session_cls.return_value = mock_session
+
+    academi_html = '''
+    <div class="logininfo">
+        You are logged in as <a href="https://lmsug26.iiitkottayam.ac.in/user/profile.php?id=12" title="View profile">2026BCS0011 ROHAN VERMA</a> (<a href="logout.php">Log out</a>)
+    </div>
+    '''
+    mock_session.get.side_effect = [
+        MockResponse('<input type="hidden" name="logintoken" value="fake_token">'),
+        MockResponse(academi_html)
+    ]
+    mock_session.post.return_value = MockResponse('Dashboard <a href="logout.php">Logout</a>')
+
+    response = client.post("/auth/login", json={"email_id": "2026BCS0011", "password": "password123"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "ROHAN VERMA"
+    assert data["full_name"] == "2026BCS0011 ROHAN VERMA"
+    assert data["roll_no"] == "2026BCS0011"
+    mock_session.get.assert_any_call("https://lmsug26.iiitkottayam.ac.in/login/index.php", timeout=10)
+
+@patch("main.std_requests.Session")
+def test_stale_roll_number_name_auto_repair(mock_session_cls):
+    """
+    Verify that an existing user whose name was previously stuck as their roll number
+    is automatically re-scraped from Moodle and repaired with their human name in DB.
+    """
+    db = TestingSessionLocal()
+    # User was previously saved with name == roll_no due to the old failed scraper
+    user = Users(
+        roll_no="2024bcs0099",
+        email_id="2024bcs0099@iiitkottayam.ac.in",
+        name="2024bcs0099",
+        full_name="2024bcs0099",
+        password_hash=hash_password("mypassword"),
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.close()
+
+    mock_session = MagicMock()
+    mock_session_cls.return_value = mock_session
+
+    profile_html = '''
+    <div class="user-menu-wrapper">
+        <span class="user-name">2024BCS0099 KAVYA NAIR</span>
+    </div>
+    <a href="mailto:2024bcs0099@iiitkottayam.ac.in">email</a>
+    '''
+    mock_session.get.side_effect = [
+        MockResponse('<input type="hidden" name="logintoken" value="fake_token">'),
+        MockResponse(profile_html)
+    ]
+    mock_session.post.return_value = MockResponse('Dashboard')
+
+    # Logging in with the cached password triggers auto-repair instead of blind fast-path
+    response = client.post("/auth/login", json={"email_id": "2024bcs0099", "password": "mypassword"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "KAVYA NAIR"
+    assert data["full_name"] == "2024BCS0099 KAVYA NAIR"
+
+    # Verify database was updated
+    verify_db = TestingSessionLocal()
+    updated_user = verify_db.query(Users).filter(Users.roll_no == "2024bcs0099").first()
+    assert updated_user.name == "KAVYA NAIR"
+    assert updated_user.full_name == "2024BCS0099 KAVYA NAIR"
+    verify_db.close()
+
