@@ -130,6 +130,11 @@ export function formatFullName(rawName) {
     cleanName = rollMatch[2];
   }
 
+  // If cleanName is purely a roll number like "2024bcs0217", format it cleanly uppercase (e.g. "2024BCS0217")
+  if (/^[0-9]{4}[a-zA-Z]{2,5}[0-9]{3,5}$/i.test(cleanName)) {
+    return cleanName.toUpperCase();
+  }
+
   return cleanName.split(/\s+/).filter(Boolean).map(word => {
     if (word.length === 1) return word.toUpperCase();
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();

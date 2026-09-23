@@ -14,6 +14,14 @@ export function getInitials(name) {
     clean = rollMatch[1].trim();
   }
 
+  // If the whole string is a roll number (e.g. "2024bcs0217", "2024bcy0010")
+  // Extract branch letters (e.g. "CS" from "2024bcs0217") rather than numeric year digits like "20"
+  const rollOnlyMatch = clean.match(/^[0-9]{4}([a-zA-Z]{2,4})[0-9]{3,5}$/i);
+  if (rollOnlyMatch) {
+    const branch = rollOnlyMatch[1].toUpperCase();
+    return branch.length > 2 ? branch.slice(-2) : branch;
+  }
+
   // If the whole string is only numbers or empty, return '??' (never derive from roll number)
   if (/^[0-9]+$/i.test(clean) || clean.length === 0) {
     return '??';

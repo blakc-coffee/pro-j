@@ -202,13 +202,17 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
 
         user = db.query(Users).filter(Users.google_sub == google_sub).first()
 
-        if not user:
-            if email:
-                user = db.query(Users).filter(Users.email_id == email).first()
-                if user:
-                    user.google_sub = google_sub
-                    db.commit()
-                    db.refresh(user)
+        if not user and email:
+            user = db.query(Users).filter(Users.email_id == email).first()
+            if not user:
+                inferred_prefix = (email.split('@')[0])[:64]
+                user = db.query(Users).filter(Users.roll_no == inferred_prefix).first()
+            if user:
+                user.google_sub = google_sub
+                if email and not user.email_id:
+                    user.email_id = email
+                db.commit()
+                db.refresh(user)
 
         if not user:
             if not email:
@@ -230,9 +234,17 @@ def auth_google(req: GoogleAuthRequest, db=Depends(get_db)):
             db.add(user)
             db.commit()
             db.refresh(user)
-        elif not getattr(user, "full_name", None):
-            user.full_name = user.name or name
-            db.commit()
+        else:
+            # Auto-repair name if user was created before fixes with roll number as their name
+            clean_name = (user.name or "").strip().lower()
+            clean_roll = (user.roll_no or "").strip().lower()
+            if (not clean_name or clean_name == clean_roll or clean_name.startswith("user ")) and name and name != "Google User":
+                user.name = name
+                user.full_name = name
+                db.commit()
+            elif not getattr(user, "full_name", None):
+                user.full_name = user.name or name
+                db.commit()
 
         onboarding_required = user.roll_no is None or user.gender is None or user.phone_no is None
         
