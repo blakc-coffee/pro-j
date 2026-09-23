@@ -17,22 +17,7 @@ import { colors } from '../constants/colors';
 import { radius, spacing } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import { useNotifications } from '../context/NotificationContext';
-
-function formatRelativeTime(dateStr) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffSec = Math.floor((now - date) / 1000);
-
-  if (diffSec < 60) return 'Just now';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
+import { formatRelativeTime } from '../utils/format';
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();

@@ -1,11 +1,11 @@
 from __future__ import annotations
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from datetime import date as dt_date, time as dt_time
 from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from database import Base
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 class Users(Base):
     __tablename__ = "users"
@@ -541,6 +541,12 @@ class MessageOut(BaseModel):
     user_roll_no: str | None = None
     model_config = {"from_attributes": True}
 
+    @field_serializer("created_at")
+    def serialize_created_at(self, dt: datetime, _info):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
+
 class ItemCreate(BaseModel):
     title: str
     type: str  # 'lost' | 'found'
@@ -582,6 +588,12 @@ class ItemOut(BaseModel):
     messages: list[MessageOut] = []
     model_config = {"from_attributes": True}
 
+    @field_serializer("created_at")
+    def serialize_created_at(self, dt: datetime, _info):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
+
 class NotificationOut(BaseModel):
     id: int
     user_id: int
@@ -592,6 +604,12 @@ class NotificationOut(BaseModel):
     is_read: bool
     created_at: datetime
     model_config = {"from_attributes": True}
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, dt: datetime, _info):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
 
 class NotificationListOut(BaseModel):
     unread_count: int

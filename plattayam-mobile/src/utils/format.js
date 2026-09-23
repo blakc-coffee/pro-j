@@ -12,6 +12,55 @@ export function formatDate(value) {
   return `${day}/${month}/${year}`;
 }
 
+/**
+ * Safely parses any date or ISO string from the backend into a Date object.
+ * If the string represents naive UTC (e.g. "2026-09-23T05:40:00" without 'Z' or offset),
+ * it appends 'Z' so it is parsed as UTC rather than being wrongly interpreted
+ * as the user's local device time.
+ */
+export function parseUtcDate(dateStr) {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
+  let s = String(dateStr).trim();
+  if (!s) return null;
+
+  // If ISO date-time without timezone (e.g. 2026-09-23T05:40:00 or 2026-09-23 05:40:00)
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/.test(s) && !s.endsWith('Z') && !/[+-]\d{2}(:\d{2})?$/.test(s)) {
+    s = s.replace(' ', 'T') + 'Z';
+  }
+
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Formats relative elapsed time (e.g. "Just now", "5m ago", "2h ago", "Yesterday", "3d ago", "Sep 20").
+ * Accurate across all timezones without naive date drift.
+ */
+export function formatRelativeTime(dateStr) {
+  const date = parseUtcDate(dateStr);
+  if (!date) return '';
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+
+  // If clock skew or within the last 60 seconds
+  if (diffSec < 60) return 'Just now';
+
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 export function formatTime(value) {
   if (!value) {
     return '—';

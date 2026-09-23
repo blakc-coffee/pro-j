@@ -20,13 +20,15 @@ import { colors } from '../../../constants/colors';
 import { radius, spacing } from '../../../constants/spacing';
 import { typography } from '../../../constants/typography';
 import { deleteItem, listMyItems, updateItemStatus } from '../services/lostfound';
+import { formatRelativeTime, parseUtcDate } from '../../../utils/format';
 
 const TABS = ['Active', 'History'];
 
 function isItemExpired(item) {
   if (!item.created_at && !item.createdAt) return false;
   try {
-    const created = new Date(item.created_at || item.createdAt);
+    const created = parseUtcDate(item.created_at || item.createdAt);
+    if (!created) return false;
     const now = new Date();
     const diffDays = (now - created) / (1000 * 60 * 60 * 24);
     return diffDays >= 30;
@@ -35,23 +37,7 @@ function isItemExpired(item) {
   }
 }
 
-function formatPostedDate(dateStr) {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    const now = new Date();
-    const diffHours = Math.floor((now - d) / (1000 * 60 * 60));
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 30) return `${diffDays}d ago`;
-    return d.toLocaleDateString();
-  } catch {
-    return '';
-  }
-}
+const formatPostedDate = formatRelativeTime;
 
 export default function MyItemsScreen() {
   const navigation = useNavigation();
