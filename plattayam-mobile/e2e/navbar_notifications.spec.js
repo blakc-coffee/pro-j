@@ -105,4 +105,65 @@ test.describe('AppNavBar and Notifications E2E', () => {
     await expect(bellBtn.getByText('4')).not.toBeVisible();
     await page.screenshot({ path: 'e2e/screenshots/navbar_bell_after_read.png' });
   });
+
+  test('renders compact simplified notifications in mobile view (light & dark mode)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const mockNotifications = [
+      { id: 201, title: 'Cab Seat Request', message: 'Bob requested to join your cab to Kottayam', type: 'cab_request', reference_id: '2', is_read: false, created_at: new Date().toISOString() },
+      { id: 202, title: 'Team Invitation', message: 'Alice invited you to join team Neural Hack', type: 'hack_invite', reference_id: '1', is_read: false, created_at: new Date(Date.now() - 3600000).toISOString() },
+      { id: 203, title: 'Team Application Accepted', message: 'Your application to HackElite was accepted', type: 'hack_accepted', reference_id: '3', is_read: true, created_at: new Date(Date.now() - 86400000).toISOString() },
+      { id: 204, title: 'Item Found', message: 'Someone reported finding your calculator in Lab 2', type: 'lost_message', reference_id: '4', is_read: true, created_at: new Date(Date.now() - 172800000).toISOString() },
+    ];
+
+    await page.route('**/notifications', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            unread_count: 2,
+            notifications: mockNotifications,
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.addInitScript(() => {
+      window.localStorage.setItem('plattayam.theme', 'light');
+      window.localStorage.setItem(
+        'plattayam.user',
+        JSON.stringify({
+          access_token: 'mock-test-jwt-token',
+          user_id: 1,
+          name: 'Dharun Kumar',
+          roll_no: '2021001',
+          email_id: 'dharun@iiitkottayam.ac.in',
+        })
+      );
+    });
+
+    await page.goto('/');
+    const bellBtn = page.getByLabel(/Notifications/i).first();
+    await bellBtn.click();
+    await expect(page.getByText('Notifications')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Cab Seat Request')).toBeVisible();
+
+    await page.screenshot({ path: 'e2e/screenshots/notifications_mobile_light.png' });
+
+    // Switch to dark theme
+    await page.evaluate(() => {
+      window.localStorage.setItem('plattayam.theme', 'dark');
+    });
+    await page.reload();
+    const bellBtnDark = page.getByLabel(/Notifications/i).first();
+    await bellBtnDark.click();
+    await expect(page.getByText('Notifications')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Cab Seat Request')).toBeVisible();
+
+    await page.screenshot({ path: 'e2e/screenshots/notifications_mobile_dark.png' });
+  });
 });
+

@@ -34,36 +34,15 @@ function formatRelativeTime(dateStr) {
   return date.toLocaleDateString();
 }
 
-import { Image } from 'react-native';
-
-const cabIcon = require('../../assets/icon-cab.png');
-const lostFoundIcon = require('../../assets/icon-lostfound.png');
-const hackmateIcon = require('../../assets/icon-hackmate.png');
-const laptopIcon = require('../../assets/icon-laptop.png');
-const bellIcon = require('../../assets/bell-icon.png');
-
-function renderNotificationIcon(type) {
-  if (type?.startsWith('cab_')) {
-    return <Image source={cabIcon} style={styles.notifIconImage} resizeMode="contain" />;
-  }
-  if (type?.startsWith('hack_')) {
-    return <Image source={type === 'hack_invite' ? hackmateIcon : laptopIcon} style={styles.notifIconImage} resizeMode="contain" />;
-  }
-  if (type?.startsWith('lost_')) {
-    return <Image source={lostFoundIcon} style={styles.notifIconImage} resizeMode="contain" />;
-  }
-  return <Image source={bellIcon} style={styles.notifIconImage} resizeMode="contain" />;
-}
-
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+
   const {
     notifications,
     unreadCount,
     loading,
     refreshing,
     error,
-    refresh,
     markAsRead,
     markAllAsRead,
     fetchNotifications,
@@ -114,7 +93,7 @@ export default function NotificationsScreen() {
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.list}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} />
+              <RefreshControl refreshing={refreshing} onRefresh={() => fetchNotifications(true)} />
             }
             renderItem={({ item }) => {
               const isUnread = !item.is_read;
@@ -124,25 +103,26 @@ export default function NotificationsScreen() {
                   accessibilityRole="button"
                 >
                   <Card
-                    padding="md"
-                    style={[styles.notifCard, isUnread && styles.unreadCard]}
+                    padding="none"
+                    style={[styles.notifCard, !isUnread && styles.readCard]}
                   >
-                    <View style={styles.cardRow}>
-                      <View style={styles.iconBox}>
-                        {renderNotificationIcon(item.type)}
+                    <View style={styles.contentBox}>
+                      <View style={styles.titleRow}>
+                        <Text
+                          style={[styles.title, isUnread ? styles.unreadTitle : styles.readTitle]}
+                          numberOfLines={1}
+                        >
+                          {item.title}
+                        </Text>
+                        <Text style={[styles.timeText, isUnread && styles.unreadTime]}>
+                          {formatRelativeTime(item.created_at)}
+                        </Text>
                       </View>
-                      <View style={styles.contentBox}>
-                        <View style={styles.titleRow}>
-                          <Text style={[styles.title, isUnread && styles.unreadTitle]}>
-                            {item.title}
-                          </Text>
-                          <Text style={styles.timeText}>
-                            {formatRelativeTime(item.created_at)}
-                          </Text>
-                        </View>
-                        <Text style={styles.messageText}>{item.message}</Text>
-                      </View>
-                      {isUnread && <View style={styles.unreadDot} />}
+                      <Text
+                        style={[styles.messageText, isUnread ? styles.unreadMessage : styles.readMessage]}
+                      >
+                        {item.message}
+                      </Text>
                     </View>
                   </Card>
                 </Pressable>
@@ -168,30 +148,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  unreadCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.primary,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notifIconImage: {
-    width: 20,
-    height: 20,
-    tintColor: colors.primary,
+  readCard: {
+    opacity: 0.78,
   },
   contentBox: {
     flex: 1,
@@ -200,32 +162,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   title: {
     ...typography.body,
-    fontWeight: '500',
-    color: colors.foreground,
+    fontSize: 14,
+    flex: 1,
   },
   unreadTitle: {
     fontWeight: '700',
+    color: colors.foreground,
+  },
+  readTitle: {
+    fontWeight: '400',
+    color: colors.mutedForeground,
   },
   timeText: {
     ...typography.caption,
-    color: colors.mutedForeground,
     fontSize: 11,
+    marginLeft: spacing.sm,
+    color: colors.mutedForeground,
+  },
+  unreadTime: {
+    fontWeight: '600',
   },
   messageText: {
     ...typography.caption,
-    color: colors.mutedForeground,
     fontSize: 13,
     lineHeight: 18,
   },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginTop: 6,
+  unreadMessage: {
+    color: colors.foreground,
+    fontWeight: '400',
+  },
+  readMessage: {
+    color: colors.mutedForeground,
   },
 });
