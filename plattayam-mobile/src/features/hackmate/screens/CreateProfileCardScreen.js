@@ -172,35 +172,30 @@ export default function CreateProfileCardScreen() {
 
               <FormInput
                 label="Primary Role / Title *"
-                placeholder="Frontend Developer, AI/ML Researcher"
                 value={role}
                 onChangeText={setRole}
               />
 
               <FormInput
                 label="Target Hackathon"
-                placeholder="Smart India Hackathon 2026 (or leave blank for any)"
                 value={hackathon}
                 onChangeText={setHackathon}
               />
 
               <FormInput
                 label="Key Skills (comma-separated) *"
-                placeholder="React Native, TypeScript, UI Design"
                 value={skills}
                 onChangeText={setSkills}
               />
 
               <FormInput
                 label="Tech Stack (comma-separated)"
-                placeholder="FastAPI, Docker, Tailwind CSS, PyTorch"
                 value={techStack}
                 onChangeText={setTechStack}
               />
 
               <FormInput
                 label="Experience Level"
-                placeholder="2+ years React, Built 3 hackathon projects"
                 value={experience}
                 onChangeText={setExperience}
               />
@@ -225,9 +220,6 @@ export default function CreateProfileCardScreen() {
                     >
                       Open to Work
                     </Text>
-                    {status === 'open' ? (
-                      <Text style={styles.checkIconOpen}>✓</Text>
-                    ) : null}
                   </Pressable>
 
                   <Pressable
@@ -246,9 +238,6 @@ export default function CreateProfileCardScreen() {
                     >
                       Occupied
                     </Text>
-                    {status === 'occupied' ? (
-                      <Text style={styles.checkIconOccupied}>✓</Text>
-                    ) : null}
                   </Pressable>
                 </View>
 
@@ -263,7 +252,6 @@ export default function CreateProfileCardScreen() {
 
               <FormInput
                 label="About You / Bio"
-                placeholder="Brief pitch about yourself, what you like building, and what kind of team you are looking for."
                 value={about}
                 onChangeText={setAbout}
                 multiline
@@ -272,7 +260,6 @@ export default function CreateProfileCardScreen() {
 
               <FormInput
                 label="Portfolio / GitHub / LinkedIn"
-                placeholder="https://github.com/yourhandle"
                 value={portfolio}
                 onChangeText={setPortfolio}
                 autoCapitalize="none"
@@ -280,7 +267,6 @@ export default function CreateProfileCardScreen() {
 
               <FormInput
                 label="Contact Info *"
-                placeholder="Phone number, email, or @handle"
                 value={contact}
                 onChangeText={setContact}
               />
@@ -379,16 +365,6 @@ const styles = StyleSheet.create({
   statusOptionTextInactive: {
     color: colors.mutedForeground,
     fontWeight: '500',
-  },
-  checkIconOpen: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.success,
-  },
-  checkIconOccupied: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.warning,
   },
   statusHint: {
     ...typography.caption,

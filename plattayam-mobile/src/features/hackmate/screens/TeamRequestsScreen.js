@@ -79,6 +79,12 @@ export default function TeamRequestsScreen() {
               <TeamRequestCard
                 request={item}
                 busy={busyId === item.id}
+                onViewProfile={() => {
+                  const personId = item.userId || item.user_id;
+                  if (personId) {
+                    navigation.navigate('CandidateProfile', { personId });
+                  }
+                }}
                 onAccept={() => handleRespond(item.id, 'accepted')}
                 onReject={() => handleRespond(item.id, 'rejected')}
               />

@@ -11,6 +11,7 @@ export default function TeamRequestCard({
   request,
   onAccept,
   onReject,
+  onViewProfile,
   busy,
 }) {
   if (!request) return null;
@@ -24,8 +25,19 @@ export default function TeamRequestCard({
 
   return (
     <Card padding="lg" style={styles.card}>
-      {/* Top Row: Avatar + Name/Roll */}
-      <View style={styles.userRow}>
+      {/* Top Row: Avatar + Name/Roll (Clickable to view candidate profile) */}
+      <Pressable
+        onPress={onViewProfile}
+        disabled={!onViewProfile}
+        style={({ pressed }) => [
+          styles.userRow,
+          onViewProfile && styles.userRowInteractive,
+          pressed && onViewProfile && styles.userRowPressed,
+        ]}
+        accessibilityRole={onViewProfile ? 'button' : undefined}
+        accessibilityLabel={`View candidate profile of ${displayName}`}
+        testID="request-profile-link"
+      >
         <Avatar name={request.name} size={44} style={styles.avatar} />
         <View style={styles.userInfo}>
           <Text style={styles.name}>{displayName}</Text>
@@ -44,7 +56,7 @@ export default function TeamRequestCard({
             {request.status.toUpperCase()}
           </Text>
         ) : null}
-      </View>
+      </Pressable>
 
       {/* Role */}
       {request.role ? (
@@ -101,6 +113,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.xs,
+  },
+  userRowInteractive: {
+    cursor: 'pointer',
+  },
+  userRowPressed: {
+    opacity: 0.75,
   },
   avatar: {
     marginRight: spacing.sm,

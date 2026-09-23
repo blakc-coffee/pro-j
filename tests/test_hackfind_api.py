@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from main import app
 from database import Base, get_db
-from model import Users
+from model import Users, HackFindProfile
 from security import create_access_token
 
 # Setup isolated in-memory test database
@@ -35,6 +35,7 @@ def setup_test_environment():
     u5 = Users(user_id=5, roll_no="2023110005", email_id="user5@iiitkottayam.ac.in", name="Dharun S")
     u4 = Users(user_id=4, roll_no="2023110004", email_id="user4@iiitkottayam.ac.in", name="Rohit Verma")
     u6 = Users(user_id=6, roll_no="2023110006", email_id="user6@iiitkottayam.ac.in", name="Sneha Menon")
+    
     db.add_all([u5, u4, u6])
     db.commit()
     db.close()
@@ -43,6 +44,13 @@ def setup_test_environment():
     
     Base.metadata.drop_all(bind=test_engine)
     app.dependency_overrides.clear()
+
+def seed_candidate_profile(user_id: int, role: str = "Developer", skills: str = "React, CSS", status: str = "open"):
+    db = TestingSessionLocal()
+    prof = HackFindProfile(user_id=user_id, role=role, skills=skills, contact=f"user{user_id}@iiitkottayam.ac.in", status=status)
+    db.add(prof)
+    db.commit()
+    db.close()
 
 def get_auth_headers(user_id: int):
     token = create_access_token({"sub": str(user_id)})
@@ -91,6 +99,8 @@ def test_create_and_list_teams():
     assert res_get.json()["name"] == "Backend Test Team"
 
 def test_join_request_and_acceptance_flow():
+    seed_candidate_profile(4, "Frontend Dev", "React, CSS")
+    seed_candidate_profile(6, "Backend Dev", "Go, Docker")
     headers_u5 = get_auth_headers(5) # Leader
     headers_u4 = get_auth_headers(4) # Applicant 1
     headers_u6 = get_auth_headers(6) # Applicant 2
@@ -288,6 +298,7 @@ def test_invite_to_team_flow():
     assert dup_res.status_code == 409
 
 def test_join_request_accept_with_status_payload_and_double_accept():
+    seed_candidate_profile(4, "Backend Engineer", "FastAPI, PostgreSQL")
     headers_u5 = get_auth_headers(5)  # Team Leader (Account A)
     headers_u4 = get_auth_headers(4)  # Candidate (Account B)
 
@@ -355,6 +366,7 @@ def test_join_request_accept_with_status_payload_and_double_accept():
     assert "already been accepted" in double_accept_res.json()["detail"].lower()
 
 def test_join_request_reject_flow():
+    seed_candidate_profile(6, "Designer", "Figma, UI")
     headers_u5 = get_auth_headers(5)  # Team Leader (Account A)
     headers_u6 = get_auth_headers(6)  # Candidate (Account C)
 
@@ -391,6 +403,8 @@ def test_join_request_reject_flow():
     assert team_check.json()["members"][0]["id"] == "5"
 
 def test_end_to_end_accept_flow_with_frontend_payload():
+    seed_candidate_profile(4, "Frontend Developer", "React Native, UI Design")
+    seed_candidate_profile(6, "Backend Dev", "Go, Docker")
     # Complete 12-step verification of HackMate join-request accept flow
     headers_u5 = get_auth_headers(5)  # Account A (Leader)
     headers_u4 = get_auth_headers(4)  # Account B (Candidate)
@@ -582,6 +596,40 @@ def test_invite_candidate_flow_and_candidate_acceptance():
     leader_notifs = client.get("/notifications", headers=headers_u5).json()["notifications"]
     assert len(leader_notifs) >= 1
     assert "Rohit Verma accepted your invitation" in leader_notifs[0]["message"]
+
+
+def test_profile_required_before_sending_join_request():
+    headers_u5 = get_auth_headers(5)
+
+    # Create team
+    team_res = client.post("/hackfind/teams", json={"name": "Gate Team", "hackathon": "SIH", "max_members": 4}, headers=headers_u5)
+    assert team_res.status_code == 200
+    team_id = int(team_res.json()["id"])
+
+    # User 99 (no profile) attempts to join team
+    db = TestingSessionLocal()
+    u99 = Users(user_id=99, roll_no="2023110099", email_id="user99@iiitkottayam.ac.in", name="No Profile User")
+    db.add(u99)
+    db.commit()
+    db.close()
+
+    headers_u99 = get_auth_headers(99)
+    req_res = client.post(f"/hackfind/teams/{team_id}/requests", json={"notes": "Hi"}, headers=headers_u99)
+    assert req_res.status_code == 400
+    assert "profile" in req_res.json()["detail"].lower()
+
+    # User 99 creates profile
+    create_prof = client.post(
+        "/hackfind/people",
+        json={"role": "Designer", "skills": ["Figma", "UI"], "contact": "user99@iiitkottayam.ac.in", "hackathon": "SIH"},
+        headers=headers_u99
+    )
+    assert create_prof.status_code == 200, create_prof.text
+
+    # User 99 can now send join request successfully
+    req_res_ok = client.post(f"/hackfind/teams/{team_id}/requests", json={"notes": "Hi with profile"}, headers=headers_u99)
+    assert req_res_ok.status_code == 200
+
 
 
 

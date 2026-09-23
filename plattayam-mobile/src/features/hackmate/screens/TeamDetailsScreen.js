@@ -24,6 +24,7 @@ import { useNotifications } from '../../../context/NotificationContext';
 import {
   applyToTeam,
   deleteTeam,
+  getMyProfile,
   getTeam,
   leaveTeam,
   listTeamRequests,
@@ -48,6 +49,7 @@ export default function TeamDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
+  const [hasProfile, setHasProfile] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!teamId) return;
@@ -69,6 +71,16 @@ export default function TeamDetailsScreen() {
         }
       } else {
         setRequests([]);
+      }
+
+      // 3. Check if user has created a candidate profile
+      if (currentUserId) {
+        try {
+          const myProf = await getMyProfile();
+          setHasProfile(!!(myProf && (myProf.id || myProf.role)));
+        } catch {
+          setHasProfile(false);
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to load team details.');
@@ -235,7 +247,21 @@ export default function TeamDetailsScreen() {
       Alert.alert('Success', 'Your join request has been submitted to the team leader!');
       loadData();
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to submit join request.');
+      if (err.message && err.message.toLowerCase().includes('profile')) {
+        Alert.alert(
+          'Profile Required',
+          'You need to create your HackMate candidate profile before requesting to join a team.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Create Profile',
+              onPress: () => navigation.navigate('CreateProfileCard'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', err.message || 'Failed to submit join request.');
+      }
     } finally {
       setActionBusy(false);
     }
@@ -296,13 +322,22 @@ export default function TeamDetailsScreen() {
                 {/* Team Leader */}
                 <View style={styles.section}>
                   <Text style={styles.sectionLabel}>Team Leader</Text>
-                  <View style={styles.leaderRow}>
+                  <Pressable
+                    style={({ pressed }) => [styles.leaderRow, styles.interactiveRow, pressed && styles.rowPressed]}
+                    onPress={() => {
+                      if (team.leaderId) {
+                        navigation.navigate('CandidateProfile', { personId: team.leaderId });
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View leader profile of ${team.leaderName}`}
+                  >
                     <Avatar name={team.leaderName} size={40} style={styles.avatar} />
                     <View style={styles.leaderInfo}>
                       <Text style={styles.leaderName}>{formatFullName(team.leaderName) || team.leaderName || 'Team Leader'}</Text>
                       <Text style={styles.leaderMeta}>Team Lead</Text>
                     </View>
-                  </View>
+                  </Pressable>
                 </View>
 
                 {/* Current Members */}
@@ -315,11 +350,22 @@ export default function TeamDetailsScreen() {
                       const memberDisplayName = formatFullName(member.name) || member.name || 'Member';
                       return (
                         <View key={member.id} style={styles.memberItemRow}>
-                          <Avatar name={member.name} size={28} style={styles.memberAvatar} />
-                          <View style={styles.memberInfo}>
-                            <Text style={styles.memberItemName}>{memberDisplayName}</Text>
-                            <Text style={styles.memberItemRole}>{member.role || 'Member'}</Text>
-                          </View>
+                          <Pressable
+                            style={({ pressed }) => [styles.memberInfoPressable, pressed && styles.rowPressed]}
+                            onPress={() => {
+                              if (member.id) {
+                                navigation.navigate('CandidateProfile', { personId: member.id });
+                              }
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`View profile of ${memberDisplayName}`}
+                          >
+                            <Avatar name={member.name} size={28} style={styles.memberAvatar} />
+                            <View style={styles.memberInfo}>
+                              <Text style={styles.memberItemName}>{memberDisplayName}</Text>
+                              <Text style={styles.memberItemRole}>{member.role || 'Member'}</Text>
+                            </View>
+                          </Pressable>
                           {isLeader ? (
                             <Pressable
                               onPress={() => handleRemoveMember(member.id, member.name)}
@@ -387,6 +433,12 @@ export default function TeamDetailsScreen() {
                           key={req.id}
                           request={req}
                           busy={actionBusy}
+                          onViewProfile={() => {
+                            const personId = req.userId || req.user_id;
+                            if (personId) {
+                              navigation.navigate('CandidateProfile', { personId });
+                            }
+                          }}
                           onAccept={() => handleAcceptRequest(req.id)}
                           onReject={() => handleRejectRequest(req.id)}
                         />
@@ -453,8 +505,22 @@ export default function TeamDetailsScreen() {
                   </Text>
                   <Text style={styles.statusPendingBadge}>PENDING</Text>
                 </Card>
+              ) : !hasProfile ? (
+                /* Candidate without Profile: Prompt to create profile */
+                <Card padding="lg" style={styles.card}>
+                  <Text style={styles.joinHeading}>Interested in joining this team?</Text>
+                  <Text style={styles.profileRequiredText}>
+                    You need to create your HackMate candidate profile before requesting to join teams.
+                  </Text>
+                  <PrimaryButton
+                    label="Create Profile to Apply"
+                    tone="primary"
+                    onPress={() => navigation.navigate('CreateProfileCard')}
+                    style={styles.profileRequiredBtn}
+                  />
+                </Card>
               ) : (
-                /* Candidate / Outsider: Apply to Join */
+                /* Candidate with Profile: Apply to Join */
                 <Card padding="lg" style={styles.card}>
                   <Text style={styles.joinHeading}>Interested in joining this team?</Text>
                   <PrimaryButton
@@ -556,6 +622,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
+  },
+  interactiveRow: {
+    cursor: 'pointer',
+  },
+  rowPressed: {
+    opacity: 0.75,
+  },
+  memberInfoPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    cursor: 'pointer',
   },
   avatar: {
     marginRight: 10,
@@ -659,6 +737,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.foreground,
     marginBottom: spacing.sm,
+  },
+  profileRequiredText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.mutedForeground,
+    marginBottom: spacing.md,
+  },
+  profileRequiredBtn: {
+    marginTop: 4,
   },
   errorText: {
     ...typography.caption,

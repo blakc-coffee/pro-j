@@ -1130,6 +1130,25 @@ def get_hackfind_person(person_id: int, db=Depends(get_db)):
     if not profile:
         profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == person_id).first()
     if not profile:
+        user = db.query(Users).filter(Users.user_id == person_id).first()
+        if user:
+            created_str = user.created_at.isoformat() if getattr(user, "created_at", None) else datetime.utcnow().isoformat()
+            return PersonOut(
+                id=str(user.user_id),
+                user_id=str(user.user_id),
+                userId=str(user.user_id),
+                name=user.name or user.roll_no or f"User {user.user_id}",
+                roll_no=user.roll_no,
+                rollNo=user.roll_no,
+                role="Candidate",
+                skills=[],
+                tech_stack=[],
+                techStack=[],
+                contact=user.email_id or user.phone_no,
+                status="open",
+                created_at=created_str,
+                createdAt=created_str,
+            )
         raise HTTPException(status_code=404, detail="Candidate profile not found")
     return serialize_person(profile, db)
 
@@ -1341,6 +1360,14 @@ def request_to_join_team(
     member_count = db.query(HackFindTeamMember).filter(HackFindTeamMember.team_id == team_id).count()
     if member_count >= team.max_members:
         raise HTTPException(status_code=409, detail="Team is already full")
+
+    # Require candidate profile before sending join request
+    user_profile = db.query(HackFindProfile).filter(HackFindProfile.user_id == user_id).first()
+    if not user_profile:
+        raise HTTPException(
+            status_code=400,
+            detail="You must create a HackMate candidate profile before requesting to join a team"
+        )
 
     # Check existing request
     existing_req = db.query(HackFindTeamRequest).filter(

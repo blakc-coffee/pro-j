@@ -121,7 +121,6 @@ export default function CreateTeamScreen() {
 
               <FormInput
                 label="Max Team Size (2-10)"
-                placeholder="4"
                 value={maxMembers}
                 onChangeText={setMaxMembers}
                 keyboardType="numeric"
@@ -129,7 +128,6 @@ export default function CreateTeamScreen() {
 
               <FormInput
                 label="Project Description"
-                placeholder="What is your team building or planning to build?"
                 value={description}
                 onChangeText={setDescription}
                 multiline
@@ -146,21 +144,18 @@ export default function CreateTeamScreen() {
 
               <FormInput
                 label="Skills Needed (comma-separated)"
-                placeholder="Frontend Dev, ML Engineer, UI/UX"
                 value={skills}
                 onChangeText={setSkills}
               />
 
               <FormInput
                 label="Tech Stack (comma-separated)"
-                placeholder="React Native, FastAPI, PostgreSQL"
                 value={techStack}
                 onChangeText={setTechStack}
               />
 
               <FormInput
                 label="Leader Contact / Phone"
-                placeholder="9876543210 or @telegram_handle"
                 value={contact}
                 onChangeText={setContact}
               />
